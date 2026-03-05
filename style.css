@@ -888,3 +888,59 @@ input:checked + .slider:before {
         padding: 8px;
     }
 }
+
+/* ===== 注册成功弹窗 ===== */
+.register-success-modal {
+    max-width: 450px;
+}
+
+.register-success-content {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.email-icon {
+    font-size: 4rem;
+    margin-bottom: 16px;
+    animation: bounce 1s ease infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.register-greeting {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.register-message {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+.register-message strong {
+    color: var(--rem-blue);
+}
+
+.register-tips {
+    background: var(--bg-main);
+    padding: 16px;
+    border-radius: var(--radius-sm);
+    text-align: left;
+    border-left: 4px solid var(--rem-blue);
+}
+
+.register-tips p {
+    margin: 8px 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.register-tips strong {
+    color: var(--text-primary);
+}

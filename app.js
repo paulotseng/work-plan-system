@@ -28,6 +28,7 @@ createApp({
         const showCommentModal = ref(false);
         const showEditModal = ref(false);
         const showDetailModal = ref(false);
+        const showRegisterSuccess = ref(false);
         const selectedPlan = ref(null);
         const planComments = ref([]);
         const newComment = ref({ content: '', type: 'comment' });
@@ -100,12 +101,18 @@ createApp({
                         options: { data: { name: authForm.value.name, department: authForm.value.department } }
                     });
                     if (error) throw error;
-                    alert('注册成功！请查收邮件确认后登录。');
-                    authMode.value = 'login';
+                    // 显示注册成功弹窗
+                    showRegisterSuccess.value = true;
                 }
             } catch (error) {
                 authError.value = error.message;
             }
+        }
+
+        function closeRegisterSuccess() {
+            showRegisterSuccess.value = false;
+            authMode.value = 'login';
+            authForm.value = { email: '', password: '', name: '', department: '' };
         }
 
         async function handleLogout() {
@@ -474,12 +481,12 @@ createApp({
         return {
             loading, user, profile, authMode, authForm, authError, currentView, myPlans, allPlans,
             visibilitySettings, allProfiles, showCommentModal, showEditModal, showDetailModal,
-            selectedPlan, planComments, newComment, editingPlan, filterDepartment, searchKeyword, newPlan,
+            showRegisterSuccess, selectedPlan, planComments, newComment, editingPlan, filterDepartment, searchKeyword, newPlan,
             newVisibility, scopeOptions, stageOptions, categoryOptions, isAdmin, departments, filteredAllPlans,
             onCategoryChange, resetNewPlan, handleAuth, handleLogout, addPlan, editPlan, updatePlan,
             deletePlan, showComments, addComment, viewPlanDetail, handleFileImport, downloadTemplate,
             setAdmin, removeAdmin, addVisibilitySetting, updateVisibility, deleteVisibilitySetting,
-            getUserName, formatDate
+            getUserName, formatDate, closeRegisterSuccess
         };
     }
 }).mount('#app');

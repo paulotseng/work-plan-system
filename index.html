@@ -62,6 +62,31 @@
             </div>
         </div>
 
+        <!-- 注册成功提示弹窗 -->
+        <div v-if="showRegisterSuccess" class="modal-overlay">
+            <div class="modal-content register-success-modal">
+                <div class="modal-header">
+                    <h3>📧 注册成功！请查收确认邮件</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="register-success-content">
+                        <div class="email-icon">📬</div>
+                        <p class="register-greeting">{{ authForm.name || '用户' }}您好！</p>
+                        <p class="register-message">
+                            系统已向您的邮箱 <strong>{{ authForm.email }}</strong> 发送了一封确认邮件。
+                        </p>
+                        <div class="register-tips">
+                            <p>📌 <strong>请点击邮件中的链接完成注册确认</strong></p>
+                            <p>💡 如果没有收到邮件，请检查<strong>垃圾邮件/促销邮件</strong>文件夹</p>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button @click="closeRegisterSuccess" class="btn-primary">我知道了</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 主界面 -->
         <div v-else class="main-container">
             <!-- 顶部导航 -->
