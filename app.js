@@ -67,23 +67,19 @@ createApp({
         const proxyImportResult = ref(null);
 
 
-        // ===== 系统参数 =====
-        const scopeOptions = ref(['业务主体', '中后台', 'HRC', 'ODC', 'FNC', 'DIC', 'AIC', '万马', '嘀嗒嘀', '斯贝斯', '恒洋如易', '靠谱', 'CCC', '其他']);
-        const stageOptions = ref(['方法论--设计', '方法论--推广', '方法论--应用', '方法论--迭代', '方法论--审计', '常规支撑', '专项支撑', '其他规划']);
-        const measurableOptions = ref(['可计量', '可感知']);
-        const achievableOptions = ref(['一般', '容易', '困难']);
-        const relevantOptions = ref(['业务-强关联', '业务-弱关联', '管理-强关联', '管理-弱关联', '个人-重点', '个人-一般', '其他']);
-        const departmentOptions = ref(['ODC', 'HRC', 'FNC', 'DIC', 'AIC', 'FYA']);
+        // ===== 系统参数（从数据库加载） =====
+        const scopeOptions = ref([]);
+        const stageOptions = ref([]);
+        const measurableOptions = ref([]);
+        const achievableOptions = ref([]);
+        const relevantOptions = ref([]);
+        const departmentOptions = ref(['ODC', 'HRC', 'FNC', 'DIC', 'AIC', 'FYA']); // 部门保持硬编码
 
         // 职能<管理三角>选项
-        const categoryOptions = ref(['组织发展维度', '人力资源维度', '业务发展维度']);
+        const categoryOptions = ref([]);
 
-        // 职能细分映射（改为 ref 以支持编辑）
-        const subCategoryMap = ref({
-            '组织发展维度': ['组织管理', '流程管理', '方法论管理', '异常管理'],
-            '人力资源维度': ['招聘配置', '绩效管理', '员工关系'],
-            '业务发展维度': []
-        });
+        // 职能细分映射（从数据库加载）
+        const subCategoryMap = ref({});
 
         // 当前选中的职能分类（用于管理职能细分）
         const selectedCategoryForSub = ref('组织发展维度');
@@ -365,6 +361,72 @@ createApp({
         // 手动刷新通知
         async function refreshNotifications() {
             await fetchMyNotifications();
+        }
+
+        // ===== 系统配置管理（数据库） =====
+        // 从数据库加载系统配置
+        async function fetchSystemConfig() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('system_config')
+                    .select('*');
+
+                if (error) {
+                    console.error('加载系统配置失败:', error);
+                    return;
+                }
+
+                if (data) {
+                    data.forEach(config => {
+                        switch (config.config_key) {
+                            case 'scope_options':
+                                scopeOptions.value = config.config_value;
+                                break;
+                            case 'stage_options':
+                                stageOptions.value = config.config_value;
+                                break;
+                            case 'measurable_options':
+                                measurableOptions.value = config.config_value;
+                                break;
+                            case 'achievable_options':
+                                achievableOptions.value = config.config_value;
+                                break;
+                            case 'relevant_options':
+                                relevantOptions.value = config.config_value;
+                                break;
+                            case 'category_options':
+                                categoryOptions.value = config.config_value;
+                                break;
+                            case 'sub_category_map':
+                                subCategoryMap.value = config.config_value;
+                                break;
+                        }
+                    });
+                    console.log('✅ 系统配置加载成功');
+                }
+            } catch (err) {
+                console.error('加载系统配置异常:', err);
+            }
+        }
+
+        // 更新单个配置到数据库
+        async function updateConfigToDb(configKey, configValue) {
+            try {
+                const { error } = await supabaseClient
+                    .from('system_config')
+                    .update({ config_value: configValue, updated_at: new Date().toISOString() })
+                    .eq('config_key', configKey);
+
+                if (error) {
+                    console.error(`更新 ${configKey} 失败:`, error);
+                    alert('同步到数据库失败，请稍后重试');
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                console.error(`更新 ${configKey} 异常:`, err);
+                return false;
+            }
         }
 
         async function addPlan() {
@@ -838,70 +900,82 @@ createApp({
             }
         }
 
-        // ===== 系统参数管理 =====
-        function addScopeOption() {
+        // ===== 系统参数管理（同步数据库） =====
+        async function addScopeOption() {
             if (newScopeOption.value && !scopeOptions.value.includes(newScopeOption.value)) {
                 scopeOptions.value.push(newScopeOption.value);
+                await updateConfigToDb('scope_options', scopeOptions.value);
                 newScopeOption.value = '';
             }
         }
 
-        function removeScopeOption(index) {
+        async function removeScopeOption(index) {
             scopeOptions.value.splice(index, 1);
+            await updateConfigToDb('scope_options', scopeOptions.value);
         }
 
-        function addStageOption() {
+        async function addStageOption() {
             if (newStageOption.value && !stageOptions.value.includes(newStageOption.value)) {
                 stageOptions.value.push(newStageOption.value);
+                await updateConfigToDb('stage_options', stageOptions.value);
                 newStageOption.value = '';
             }
         }
 
-        function removeStageOption(index) {
+        async function removeStageOption(index) {
             stageOptions.value.splice(index, 1);
+            await updateConfigToDb('stage_options', stageOptions.value);
         }
 
-        function addMeasurableOption() {
+        async function addMeasurableOption() {
             if (newMeasurableOption.value && !measurableOptions.value.includes(newMeasurableOption.value)) {
                 measurableOptions.value.push(newMeasurableOption.value);
+                await updateConfigToDb('measurable_options', measurableOptions.value);
                 newMeasurableOption.value = '';
             }
         }
 
         // 可实现(A)选项管理
-        function addAchievableOption() {
+        async function addAchievableOption() {
             if (newAchievableOption.value && !achievableOptions.value.includes(newAchievableOption.value)) {
                 achievableOptions.value.push(newAchievableOption.value);
+                await updateConfigToDb('achievable_options', achievableOptions.value);
                 newAchievableOption.value = '';
             }
         }
 
-        function removeAchievableOption(index) {
+        async function removeAchievableOption(index) {
             achievableOptions.value.splice(index, 1);
+            await updateConfigToDb('achievable_options', achievableOptions.value);
         }
 
         // 相关性(R)选项管理
-        function addRelevantOption() {
+        async function addRelevantOption() {
             if (newRelevantOption.value && !relevantOptions.value.includes(newRelevantOption.value)) {
                 relevantOptions.value.push(newRelevantOption.value);
+                await updateConfigToDb('relevant_options', relevantOptions.value);
                 newRelevantOption.value = '';
             }
         }
 
-        function removeRelevantOption(index) {
+        async function removeRelevantOption(index) {
             relevantOptions.value.splice(index, 1);
+            await updateConfigToDb('relevant_options', relevantOptions.value);
         }
 
         // 职能<管理三角>选项管理
-        function addCategoryOption() {
+        async function addCategoryOption() {
             if (newCategoryOption.value && !categoryOptions.value.includes(newCategoryOption.value)) {
                 categoryOptions.value.push(newCategoryOption.value);
                 subCategoryMap.value[newCategoryOption.value] = []; // 初始化空数组
+                // 同时更新两个配置
+                await updateConfigToDb('category_options', categoryOptions.value);
+                await updateConfigToDb('sub_category_map', subCategoryMap.value);
                 newCategoryOption.value = '';
             }
         }
 
-        function removeCategoryOption(index) {
+        async function removeCategoryOption(index) {
             const category = categoryOptions.value[index];
             categoryOptions.value.splice(index, 1);
             delete subCategoryMap.value[category];
@@ -909,19 +983,24 @@ createApp({
             if (selectedCategoryForSub.value === category && categoryOptions.value.length > 0) {
                 selectedCategoryForSub.value = categoryOptions.value[0];
             }
+            // 同时更新两个配置
+            await updateConfigToDb('category_options', categoryOptions.value);
+            await updateConfigToDb('sub_category_map', subCategoryMap.value);
         }
 
         // 职能细分选项管理
-        function addSubCategoryOption() {
+        async function addSubCategoryOption() {
             const currentCategory = selectedCategoryForSub.value;
             if (newSubCategoryOption.value && !subCategoryMap.value[currentCategory].includes(newSubCategoryOption.value)) {
                 subCategoryMap.value[currentCategory].push(newSubCategoryOption.value);
+                await updateConfigToDb('sub_category_map', subCategoryMap.value);
                 newSubCategoryOption.value = '';
             }
         }
 
-        function removeSubCategoryOption(index) {
+        async function removeSubCategoryOption(index) {
             subCategoryMap.value[selectedCategoryForSub.value].splice(index, 1);
+            await updateConfigToDb('sub_category_map', subCategoryMap.value);
         }
 
         // 获取当前选中分类的职能细分列表
@@ -953,6 +1032,7 @@ createApp({
             if (session?.user) {
                 user.value = session.user;
                 await fetchProfile();
+                await fetchSystemConfig();  // 加载系统配置
                 await fetchMyPlans();
                 await fetchAllPlans();
                 await fetchAllProfiles();
@@ -964,6 +1044,7 @@ createApp({
                 if (event === 'SIGNED_IN' && session?.user) {
                     user.value = session.user;
                     await fetchProfile();
+                    await fetchSystemConfig();  // 加载系统配置
                     await fetchMyPlans();
                     await fetchAllPlans();
                     await fetchAllProfiles();
