@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>年度工作计划系统</title>
+    <title>工作计划管理系统</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
@@ -19,8 +19,8 @@
         <div v-else-if="!user" class="auth-container">
             <div class="auth-card">
                 <div class="auth-header">
-                    <h1>📋 年度工作计划系统</h1>
-                    <p class="subtitle">企业年度计划管理系统</p>
+                    <h1>📋 工作计划管理系统</h1>
+                    <p class="subtitle">企业工作计划管理平台</p>
                 </div>
 
                 <div class="auth-tabs">
@@ -88,160 +88,147 @@
         </div>
 
         <!-- 主界面 -->
-        <div v-else-if="user" class="main-container">
-            <!-- 顶部导航 -->
-            <header class="header">
-                <div class="header-left">
-                    <h1>📋 年度工作计划系统</h1>
+        <div v-else-if="user" class="app-layout">
+            <!-- 左侧菜单 -->
+            <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
+                <div class="sidebar-header">
+                    <span v-if="!sidebarCollapsed" class="logo">📋</span>
+                    <span v-if="!sidebarCollapsed" class="logo-text">工作计划</span>
+                    <button @click="sidebarCollapsed = !sidebarCollapsed" class="sidebar-toggle">
+                        {{ sidebarCollapsed ? '▶' : '◀' }}
+                    </button>
                 </div>
-                <div class="header-right">
-                    <span class="user-info">
-                        {{ profile?.name || user.email }}
-                        <span v-if="isAdmin" class="admin-badge">管理员</span>
-                    </span>
-                    <button @click="handleLogout" class="btn-logout">退出</button>
-                </div>
-            </header>
 
-            <!-- 视图切换 -->
-            <div class="view-tabs">
-                <button :class="{ active: currentView === 'my-plans' }" @click="currentView = 'my-plans'">
-                    我的计划
-                </button>
-                <button :class="{ active: currentView === 'all-plans' }" @click="currentView = 'all-plans'">
-                    全部计划
-                </button>
-                <button v-if="isAdmin" :class="{ active: currentView === 'admin' }" @click="currentView = 'admin'">
-                    管理设置
-                </button>
-            </div>
-
-            <!-- 我的计划视图 -->
-            <div v-if="currentView === 'my-plans'" class="content-section">
-                <!-- 添加计划表单 -->
-                <div class="add-plan-form">
-                    <div class="form-header">
-                        <h3>添加新计划</h3>
-                        <div class="import-section">
-                            <button @click="downloadTemplate" class="btn-template">📄 下载模板</button>
-                            <input type="file" ref="fileInput" @change="handleFileImport" accept=".xlsx,.xls,.csv" style="display: none;">
-                            <button @click="$refs.fileInput.click()" class="btn-import">📥 Excel导入</button>
-                        </div>
+                <nav class="sidebar-nav">
+                    <div class="nav-item" :class="{ active: currentView === 'dashboard' }" @click="currentView = 'dashboard'">
+                        <span class="nav-icon">🏠</span>
+                        <span v-if="!sidebarCollapsed" class="nav-text">驾驶舱</span>
                     </div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>职能<管理三角></label>
-                            <select v-model="newPlan.category" @change="onCategoryChange">
-                                <option value="业务发展维度">业务发展维度</option>
-                                <option value="组织发展维度">组织发展维度</option>
-                                <option value="人力资源维度">人力资源维度</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>职能细分</label>
-                            <select v-if="categoryOptions.length > 0" v-model="newPlan.sub_category">
-                                <option v-for="opt in categoryOptions" :key="opt" :value="opt">{{ opt }}</option>
-                            </select>
-                            <input v-else type="text" v-model="newPlan.sub_category" placeholder="请输入">
-                        </div>
-                        <div class="form-group">
-                            <label>主项目名称</label>
-                            <input type="text" v-model="newPlan.main_project" placeholder="如：1.预算与预测体系">
-                        </div>
-                        <div class="form-group">
-                            <label>子项目名称</label>
-                            <input type="text" v-model="newPlan.sub_project" placeholder="如：现金流预测">
-                        </div>
-                        <div class="form-group full-width">
-                            <label>任务描述</label>
-                            <textarea v-model="newPlan.description" placeholder="详细描述任务内容"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>覆盖范围</label>
-                            <div class="checkbox-group">
-                                <label v-for="scope in scopeOptions" :key="scope" class="checkbox-label">
-                                    <input type="checkbox" :value="scope" v-model="newPlan.scope">
-                                    {{ scope }}
-                                </label>
+                    <div class="nav-item" :class="{ active: currentView === 'my-plans' }" @click="currentView = 'my-plans'">
+                        <span class="nav-icon">📋</span>
+                        <span v-if="!sidebarCollapsed" class="nav-text">我的工作计划</span>
+                    </div>
+                    <div class="nav-item" :class="{ active: currentView === 'team-plans' }" @click="currentView = 'team-plans'">
+                        <span class="nav-icon">👥</span>
+                        <span v-if="!sidebarCollapsed" class="nav-text">团队工作计划</span>
+                    </div>
+                    <div v-if="isAdmin" class="nav-item" :class="{ active: currentView === 'admin' }" @click="currentView = 'admin'">
+                        <span class="nav-icon">⚙️</span>
+                        <span v-if="!sidebarCollapsed" class="nav-text">管理设置</span>
+                    </div>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <div class="user-info-mini" v-if="!sidebarCollapsed">
+                        <span>{{ profile?.name || user.email }}</span>
+                        <span v-if="isAdmin" class="admin-badge-mini">管理员</span>
+                    </div>
+                    <button @click="handleLogout" class="logout-btn" :title="sidebarCollapsed ? '退出' : ''">
+                        <span v-if="sidebarCollapsed">🚪</span>
+                        <span v-else>退出登录</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- 主内容区 -->
+            <main class="main-content">
+                <!-- 顶部标题栏 -->
+                <header class="content-header">
+                    <h2>{{ viewTitle }}</h2>
+                    <div class="header-actions" v-if="currentView === 'my-plans'">
+                        <button @click="downloadTemplate" class="btn-secondary">📄 下载模板</button>
+                        <input type="file" ref="fileInput" @change="handleFileImport" accept=".xlsx,.xls,.csv" style="display: none;">
+                        <button @click="$refs.fileInput.click()" class="btn-secondary">📥 Excel导入</button>
+                        <button @click="openDrawer" class="btn-primary">➕ 添加任务</button>
+                    </div>
+                    <div class="header-actions" v-if="currentView === 'team-plans'">
+                        <select v-model="filterDepartment" class="filter-select">
+                            <option value="">全部部门</option>
+                            <option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
+                        </select>
+                        <input type="text" v-model="searchKeyword" placeholder="搜索计划..." class="search-input">
+                    </div>
+                </header>
+
+                <!-- 驾驶舱视图 -->
+                <div v-if="currentView === 'dashboard'" class="dashboard-view">
+                    <div class="dashboard-grid">
+                        <!-- 数据概览卡片 -->
+                        <div class="dashboard-card">
+                            <h3>📊 数据概览</h3>
+                            <div class="stat-grid">
+                                <div class="stat-item">
+                                    <span class="stat-value">{{ myPlans.length }}</span>
+                                    <span class="stat-label">我的计划</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-value">{{ completedPlans }}</span>
+                                    <span class="stat-label">已完成</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-value">{{ inProgressPlans }}</span>
+                                    <span class="stat-label">进行中</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-value">{{ overduePlans }}</span>
+                                    <span class="stat-label">已逾期</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>任务阶段</label>
-                            <select v-model="newPlan.stage">
-                                <option v-for="stage in stageOptions" :key="stage" :value="stage">{{ stage }}</option>
-                            </select>
+
+                        <!-- 我的绩效看板 -->
+                        <div class="dashboard-card">
+                            <h3>🎯 我的绩效看板</h3>
+                            <div class="progress-chart">
+                                <div class="progress-bar-large">
+                                    <div class="progress-fill-large" :style="{ width: avgProgress + '%' }"></div>
+                                </div>
+                                <span class="progress-text">平均进度: {{ avgProgress }}%</span>
+                            </div>
+                            <div class="category-breakdown">
+                                <div v-for="cat in categoryStats" :key="cat.name" class="category-item">
+                                    <span class="category-name">{{ cat.name }}</span>
+                                    <span class="category-count">{{ cat.count }} 项</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>开始日期</label>
-                            <input type="date" v-model="newPlan.start_date">
+
+                        <!-- 异常管理看板 -->
+                        <div class="dashboard-card">
+                            <h3>⚠️ 异常管理看板</h3>
+                            <div v-if="exceptionPlans.length === 0" class="empty-mini">
+                                <p>暂无异常 ✨</p>
+                            </div>
+                            <div v-else class="exception-list">
+                                <div v-for="plan in exceptionPlans.slice(0, 5)" :key="plan.id" class="exception-item">
+                                    <span class="exception-tag" :class="getExceptionType(plan)">{{ getExceptionLabel(plan) }}</span>
+                                    <span class="exception-title">{{ plan.description?.substring(0, 30) }}...</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>结束日期</label>
-                            <input type="date" v-model="newPlan.end_date">
+
+                        <!-- 任务提醒看板 -->
+                        <div class="dashboard-card">
+                            <h3>🔔 任务提醒</h3>
+                            <div v-if="recentComments.length === 0" class="empty-mini">
+                                <p>暂无新提醒</p>
+                            </div>
+                            <div v-else class="reminder-list">
+                                <div v-for="comment in recentComments.slice(0, 5)" :key="comment.id" class="reminder-item">
+                                    <span class="reminder-type" :class="comment.type">{{ comment.type === 'reminder' ? '提醒' : '评论' }}</span>
+                                    <span class="reminder-text">{{ comment.content?.substring(0, 40) }}...</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>可衡量(M)</label>
-                            <select v-model="newPlan.measurable">
-                                <option value="可计量">可计量</option>
-                                <option value="可感知">可感知</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>可实现(A)</label>
-                            <select v-model="newPlan.achievable">
-                                <option value="一般">一般</option>
-                                <option value="容易">容易</option>
-                                <option value="困难">困难</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>相关性(R)</label>
-                            <select v-model="newPlan.relevant">
-                                <option value="业务-强关联">业务-强关联</option>
-                                <option value="业务-弱关联">业务-弱关联</option>
-                                <option value="管理-强关联">管理-强关联</option>
-                                <option value="管理-弱关联">管理-弱关联</option>
-                                <option value="个人-重点">个人-重点</option>
-                                <option value="个人-一般">个人-一般</option>
-                                <option value="其他">其他</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>负责人</label>
-                            <input type="text" v-model="newPlan.owner" placeholder="负责人">
-                        </div>
-                        <div class="form-group">
-                            <label>协同人</label>
-                            <input type="text" v-model="newPlan.collaborators" placeholder="协同人">
-                        </div>
-                        <div class="form-group">
-                            <label>进度 (%)</label>
-                            <input type="number" v-model="newPlan.progress" min="0" max="100">
-                        </div>
-                        <div class="form-group full-width">
-                            <label>备注</label>
-                            <textarea v-model="newPlan.notes" placeholder="备注信息"></textarea>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>价值计划</label>
-                            <textarea v-model="newPlan.value_plan" placeholder="价值计划"></textarea>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>价值评价</label>
-                            <textarea v-model="newPlan.value_review" placeholder="价值评价"></textarea>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button @click="addPlan" class="btn-primary">添加计划</button>
-                        <button @click="resetNewPlan" class="btn-secondary">清空</button>
                     </div>
                 </div>
 
-                <!-- 我的计划列表 -->
-                <div class="plans-section">
-                    <h3>我的计划 ({{ myPlans.length }})</h3>
+                <!-- 我的工作计划视图 -->
+                <div v-if="currentView === 'my-plans'" class="plans-view">
                     <div v-if="myPlans.length === 0" class="empty-state">
-                        <p>暂无计划，添加一个吧！</p>
+                        <div class="empty-icon">📋</div>
+                        <p>暂无工作计划</p>
+                        <button @click="openDrawer" class="btn-primary">添加第一个任务</button>
                     </div>
                     <div v-else class="plans-table-container">
                         <table class="plans-table">
@@ -262,7 +249,7 @@
                                     <td>{{ plan.main_project }}</td>
                                     <td class="description-cell">{{ plan.description }}</td>
                                     <td>{{ plan.stage }}</td>
-                                    <td>{{ plan.end_date || '-' }}</td>
+                                    <td :class="{ 'overdue': isOverdue(plan) }">{{ plan.end_date || '-' }}</td>
                                     <td>
                                         <div class="progress-bar">
                                             <div class="progress-fill" :style="{ width: plan.progress + '%' }"></div>
@@ -279,21 +266,11 @@
                         </table>
                     </div>
                 </div>
-            </div>
 
-            <!-- 全部计划视图 -->
-            <div v-if="currentView === 'all-plans'" class="content-section">
-                <div class="filter-bar">
-                    <select v-model="filterDepartment">
-                        <option value="">全部部门</option>
-                        <option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
-                    </select>
-                    <input type="text" v-model="searchKeyword" placeholder="搜索计划...">
-                </div>
-                <div class="plans-section">
-                    <h3>全部计划 ({{ filteredAllPlans.length }})</h3>
+                <!-- 团队工作计划视图 -->
+                <div v-if="currentView === 'team-plans'" class="plans-view">
                     <div v-if="filteredAllPlans.length === 0" class="empty-state">
-                        <p>暂无计划</p>
+                        <p>暂无团队计划</p>
                     </div>
                     <div v-else class="plans-table-container">
                         <table class="plans-table">
@@ -316,7 +293,7 @@
                                     <td>{{ plan.main_project }}</td>
                                     <td class="description-cell">{{ plan.description }}</td>
                                     <td>{{ plan.stage }}</td>
-                                    <td>{{ plan.end_date || '-' }}</td>
+                                    <td :class="{ 'overdue': isOverdue(plan) }">{{ plan.end_date || '-' }}</td>
                                     <td>
                                         <div class="progress-bar">
                                             <div class="progress-fill" :style="{ width: plan.progress + '%' }"></div>
@@ -332,109 +309,234 @@
                         </table>
                     </div>
                 </div>
-            </div>
 
-            <!-- 管理设置视图（管理员） -->
-            <div v-if="currentView === 'admin' && isAdmin" class="content-section">
-                <h3>管理设置</h3>
-
-                <!-- 用户角色管理 -->
-                <div class="admin-section">
-                    <h4>用户角色管理</h4>
-                    <p class="hint">设置用户为管理员或普通用户</p>
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>姓名</th>
-                                <th>部门</th>
-                                <th>角色</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="p in allProfiles" :key="p.id">
-                                <td>{{ p.name }}</td>
-                                <td>{{ p.department }}</td>
-                                <td>
-                                    <span :class="['role-badge', p.role]">{{ p.role === 'admin' ? '管理员' : '普通用户' }}</span>
-                                </td>
-                                <td>
-                                    <button v-if="p.role !== 'admin'" @click="setAdmin(p.id)" class="btn-small">设为管理员</button>
-                                    <button v-else @click="removeAdmin(p.id)" class="btn-small btn-secondary">取消管理员</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 可见性设置 -->
-                <div class="admin-section">
-                    <h4>可见性设置</h4>
-                    <p class="hint">设置哪些总监的计划对哪些人可见。默认所有人互相可见。</p>
-                    <div class="visibility-controls">
-                        <select v-model="newVisibility.owner_id">
-                            <option value="">选择计划拥有者</option>
-                            <option v-for="p in allProfiles" :key="p.id" :value="p.id">{{ p.name }} ({{ p.department }})</option>
-                        </select>
-                        <select v-model="newVisibility.viewer_id">
-                            <option value="">选择可见者</option>
-                            <option v-for="p in allProfiles" :key="p.id" :value="p.id">{{ p.name }} ({{ p.department }})</option>
-                        </select>
-                        <button @click="addVisibilitySetting" class="btn-small">添加规则</button>
+                <!-- 管理设置视图 -->
+                <div v-if="currentView === 'admin' && isAdmin" class="admin-view">
+                    <div class="admin-tabs">
+                        <button :class="{ active: adminTab === 'users' }" @click="adminTab = 'users'">用户角色管理</button>
+                        <button :class="{ active: adminTab === 'params' }" @click="adminTab = 'params'">系统参数管理</button>
+                        <button :class="{ active: adminTab === 'visibility' }" @click="adminTab = 'visibility'">可见性设置</button>
                     </div>
-                    <div class="visibility-settings">
-                        <div v-for="setting in visibilitySettings" :key="setting.id" class="visibility-item">
-                            <span>{{ getUserName(setting.owner_id) }} 的计划 → {{ getUserName(setting.viewer_id) }}</span>
-                            <label class="switch">
-                                <input type="checkbox" v-model="setting.can_view" @change="updateVisibility(setting)">
-                                <span class="slider"></span>
-                            </label>
-                            <button @click="deleteVisibilitySetting(setting.id)" class="btn-icon" title="删除">×</button>
+
+                    <!-- 用户角色管理 -->
+                    <div v-if="adminTab === 'users'" class="admin-section">
+                        <h4>用户角色管理</h4>
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>姓名</th>
+                                    <th>部门</th>
+                                    <th>角色</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="p in allProfiles" :key="p.id">
+                                    <td>{{ p.name }}</td>
+                                    <td>{{ p.department }}</td>
+                                    <td>
+                                        <span :class="['role-badge', p.role]">{{ p.role === 'admin' ? '管理员' : '普通用户' }}</span>
+                                    </td>
+                                    <td>
+                                        <button v-if="p.role !== 'admin'" @click="setAdmin(p.id)" class="btn-small">设为管理员</button>
+                                        <button v-else @click="removeAdmin(p.id)" class="btn-small btn-secondary">取消管理员</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 系统参数管理 -->
+                    <div v-if="adminTab === 'params'" class="admin-section">
+                        <h4>系统参数管理</h4>
+                        <div class="params-tabs">
+                            <button v-for="tab in paramTabs" :key="tab.key" :class="{ active: currentParamTab === tab.key }" @click="currentParamTab = tab.key; loadParamConfig(tab.key)">
+                                {{ tab.label }}
+                            </button>
                         </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- 评论弹窗 -->
-            <div v-if="showCommentModal" class="modal-overlay" @click.self="showCommentModal = false">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>评论与提醒</h3>
-                        <button @click="showCommentModal = false" class="btn-close">×</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="plan-info">
-                            <p><strong>计划：</strong>{{ selectedPlan?.description }}</p>
-                            <p><strong>负责人：</strong>{{ selectedPlan?.director_name }}</p>
-                        </div>
-                        <div class="comments-list">
-                            <div v-for="comment in planComments" :key="comment.id" class="comment-item">
-                                <div class="comment-header">
-                                    <span class="comment-author">{{ getUserName(comment.user_id) }}</span>
-                                    <span class="comment-type" :class="comment.type">{{ comment.type === 'reminder' ? '提醒' : '评论' }}</span>
-                                    <span class="comment-time">{{ formatDate(comment.created_at) }}</span>
+                        <div class="params-content">
+                            <!-- 职能细分需要特殊处理（父子关系） -->
+                            <div v-if="currentParamTab === 'sub_category'" class="param-config">
+                                <div class="param-header">
+                                    <span>职能细分配置（按职能分类）</span>
+                                    <button @click="addParamItem" class="btn-small">+ 添加选项</button>
                                 </div>
-                                <p class="comment-content">{{ comment.content }}</p>
+                                <div v-for="category in categoryTypes" :key="category" class="param-group">
+                                    <h5>{{ category }}</h5>
+                                    <div class="param-items">
+                                        <div v-for="(item, index) in getSubCategoryItems(category)" :key="index" class="param-item">
+                                            <input type="text" v-model="item.value" placeholder="选项名称">
+                                            <input type="number" v-model="item.sort_order" class="sort-input" placeholder="排序">
+                                            <button @click="removeParamItem(item)" class="btn-icon">🗑️</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div v-if="planComments.length === 0" class="no-comments">
-                                暂无评论
+
+                            <!-- 普通参数配置 -->
+                            <div v-else class="param-config">
+                                <div class="param-header">
+                                    <span>{{ getCurrentParamLabel() }}</span>
+                                    <button @click="addParamItem" class="btn-small">+ 添加选项</button>
+                                </div>
+                                <div class="param-items">
+                                    <div v-for="(item, index) in currentParamItems" :key="index" class="param-item">
+                                        <input type="text" v-model="item.value" placeholder="选项名称">
+                                        <input type="number" v-model="item.sort_order" class="sort-input" placeholder="排序">
+                                        <label class="toggle-label">
+                                            <input type="checkbox" v-model="item.is_active">
+                                            <span>启用</span>
+                                        </label>
+                                        <button @click="removeParamItem(item)" class="btn-icon">🗑️</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="param-actions">
+                                <button @click="saveParamConfig" class="btn-primary">保存配置</button>
                             </div>
                         </div>
-                        <div class="add-comment">
-                            <textarea v-model="newComment.content" placeholder="输入评论或提醒..."></textarea>
-                            <div class="comment-actions">
-                                <select v-model="newComment.type">
-                                    <option value="comment">评论</option>
-                                    <option value="reminder">提醒</option>
-                                </select>
-                                <button @click="addComment" class="btn-primary">发送</button>
+                    </div>
+
+                    <!-- 可见性设置 -->
+                    <div v-if="adminTab === 'visibility'" class="admin-section">
+                        <h4>可见性设置</h4>
+                        <p class="hint">设置哪些总监的计划对哪些人可见。默认所有人互相可见。</p>
+                        <div class="visibility-controls">
+                            <select v-model="newVisibility.owner_id">
+                                <option value="">选择计划拥有者</option>
+                                <option v-for="p in allProfiles" :key="p.id" :value="p.id">{{ p.name }} ({{ p.department }})</option>
+                            </select>
+                            <select v-model="newVisibility.viewer_id">
+                                <option value="">选择可见者</option>
+                                <option v-for="p in allProfiles" :key="p.id" :value="p.id">{{ p.name }} ({{ p.department }})</option>
+                            </select>
+                            <button @click="addVisibilitySetting" class="btn-small">添加规则</button>
+                        </div>
+                        <div class="visibility-settings">
+                            <div v-for="setting in visibilitySettings" :key="setting.id" class="visibility-item">
+                                <span>{{ getUserName(setting.owner_id) }} 的计划 → {{ getUserName(setting.viewer_id) }}</span>
+                                <label class="switch">
+                                    <input type="checkbox" v-model="setting.can_view" @change="updateVisibility(setting)">
+                                    <span class="slider"></span>
+                                </label>
+                                <button @click="deleteVisibilitySetting(setting.id)" class="btn-icon" title="删除">×</button>
                             </div>
                         </div>
                     </div>
                 </div>
+            </main>
+
+            <!-- 添加任务抽屉 -->
+            <div v-if="showDrawer" class="drawer-overlay" @click.self="closeDrawer">
+                <div class="drawer">
+                    <div class="drawer-header">
+                        <h3>➕ 添加新任务</h3>
+                        <button @click="closeDrawer" class="btn-close">×</button>
+                    </div>
+                    <div class="drawer-body">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>职能<管理三角></label>
+                                <select v-model="newPlan.category" @change="onCategoryChange">
+                                    <option v-for="cat in categoryTypes" :key="cat" :value="cat">{{ cat }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>职能细分</label>
+                                <select v-if="categoryOptions.length > 0" v-model="newPlan.sub_category">
+                                    <option v-for="opt in categoryOptions" :key="opt" :value="opt">{{ opt }}</option>
+                                </select>
+                                <input v-else type="text" v-model="newPlan.sub_category" placeholder="请输入">
+                            </div>
+                            <div class="form-group">
+                                <label>主项目名称</label>
+                                <input type="text" v-model="newPlan.main_project" placeholder="如：1.预算与预测体系">
+                            </div>
+                            <div class="form-group">
+                                <label>子项目名称</label>
+                                <input type="text" v-model="newPlan.sub_project" placeholder="如：现金流预测">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>任务描述</label>
+                                <textarea v-model="newPlan.description" placeholder="详细描述任务内容"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>覆盖范围</label>
+                                <div class="checkbox-group">
+                                    <label v-for="scope in scopeOptions" :key="scope" class="checkbox-label">
+                                        <input type="checkbox" :value="scope" v-model="newPlan.scope">
+                                        {{ scope }}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>任务阶段</label>
+                                <select v-model="newPlan.stage">
+                                    <option v-for="stage in stageOptions" :key="stage" :value="stage">{{ stage }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>开始日期</label>
+                                <input type="date" v-model="newPlan.start_date">
+                            </div>
+                            <div class="form-group">
+                                <label>结束日期</label>
+                                <input type="date" v-model="newPlan.end_date">
+                            </div>
+                            <div class="form-group">
+                                <label>可衡量(M)</label>
+                                <select v-model="newPlan.measurable">
+                                    <option v-for="opt in measurableOptions" :key="opt" :value="opt">{{ opt }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>可实现(A)</label>
+                                <select v-model="newPlan.achievable">
+                                    <option v-for="opt in achievableOptions" :key="opt" :value="opt">{{ opt }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>相关性(R)</label>
+                                <select v-model="newPlan.relevant">
+                                    <option v-for="opt in relevantOptions" :key="opt" :value="opt">{{ opt }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>负责人</label>
+                                <input type="text" v-model="newPlan.owner" placeholder="负责人">
+                            </div>
+                            <div class="form-group">
+                                <label>协同人</label>
+                                <input type="text" v-model="newPlan.collaborators" placeholder="协同人">
+                            </div>
+                            <div class="form-group">
+                                <label>进度 (%)</label>
+                                <input type="number" v-model="newPlan.progress" min="0" max="100">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>备注</label>
+                                <textarea v-model="newPlan.notes" placeholder="备注信息"></textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>价值计划</label>
+                                <textarea v-model="newPlan.value_plan" placeholder="价值计划"></textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>价值评价</label>
+                                <textarea v-model="newPlan.value_review" placeholder="价值评价"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="drawer-footer">
+                        <button @click="closeDrawer" class="btn-secondary">取消</button>
+                        <button @click="addPlan" class="btn-primary">添加任务</button>
+                    </div>
+                </div>
             </div>
 
-            <!-- 编辑弹窗（完整版） -->
+            <!-- 编辑弹窗 -->
             <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
                 <div class="modal-content modal-large">
                     <div class="modal-header">
@@ -445,10 +547,8 @@
                         <div class="form-grid">
                             <div class="form-group">
                                 <label>职能<管理三角></label>
-                                <select v-model="editingPlan.category">
-                                    <option value="业务发展维度">业务发展维度</option>
-                                    <option value="组织发展维度">组织发展维度</option>
-                                    <option value="人力资源维度">人力资源维度</option>
+                                <select v-model="editingPlan.category" @change="onEditCategoryChange">
+                                    <option v-for="cat in categoryTypes" :key="cat" :value="cat">{{ cat }}</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -484,28 +584,19 @@
                             <div class="form-group">
                                 <label>可衡量(M)</label>
                                 <select v-model="editingPlan.measurable">
-                                    <option value="可计量">可计量</option>
-                                    <option value="可感知">可感知</option>
+                                    <option v-for="opt in measurableOptions" :key="opt" :value="opt">{{ opt }}</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label>可实现(A)</label>
                                 <select v-model="editingPlan.achievable">
-                                    <option value="一般">一般</option>
-                                    <option value="容易">容易</option>
-                                    <option value="困难">困难</option>
+                                    <option v-for="opt in achievableOptions" :key="opt" :value="opt">{{ opt }}</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label>相关性(R)</label>
                                 <select v-model="editingPlan.relevant">
-                                    <option value="业务-强关联">业务-强关联</option>
-                                    <option value="业务-弱关联">业务-弱关联</option>
-                                    <option value="管理-强关联">管理-强关联</option>
-                                    <option value="管理-弱关联">管理-弱关联</option>
-                                    <option value="个人-重点">个人-重点</option>
-                                    <option value="个人-一般">个人-一般</option>
-                                    <option value="其他">其他</option>
+                                    <option v-for="opt in relevantOptions" :key="opt" :value="opt">{{ opt }}</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -572,6 +663,45 @@
                         </div>
                         <div class="form-actions">
                             <button @click="showDetailModal = false" class="btn-secondary">关闭</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 评论弹窗 -->
+            <div v-if="showCommentModal" class="modal-overlay" @click.self="showCommentModal = false">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>评论与提醒</h3>
+                        <button @click="showCommentModal = false" class="btn-close">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="plan-info">
+                            <p><strong>计划：</strong>{{ selectedPlan?.description }}</p>
+                            <p><strong>负责人：</strong>{{ selectedPlan?.director_name }}</p>
+                        </div>
+                        <div class="comments-list">
+                            <div v-for="comment in planComments" :key="comment.id" class="comment-item">
+                                <div class="comment-header">
+                                    <span class="comment-author">{{ getUserName(comment.user_id) }}</span>
+                                    <span class="comment-type" :class="comment.type">{{ comment.type === 'reminder' ? '提醒' : '评论' }}</span>
+                                    <span class="comment-time">{{ formatDate(comment.created_at) }}</span>
+                                </div>
+                                <p class="comment-content">{{ comment.content }}</p>
+                            </div>
+                            <div v-if="planComments.length === 0" class="no-comments">
+                                暂无评论
+                            </div>
+                        </div>
+                        <div class="add-comment">
+                            <textarea v-model="newComment.content" placeholder="输入评论或提醒..."></textarea>
+                            <div class="comment-actions">
+                                <select v-model="newComment.type">
+                                    <option value="comment">评论</option>
+                                    <option value="reminder">提醒</option>
+                                </select>
+                                <button @click="addComment" class="btn-primary">发送</button>
+                            </div>
                         </div>
                     </div>
                 </div>

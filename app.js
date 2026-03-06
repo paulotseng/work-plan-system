@@ -1,4 +1,4 @@
-// ===== 年度工作计划系统 - Vue 3 应用 =====
+// ===== 工作计划管理系统 - Vue 3 应用 =====
 
 // Supabase 配置
 const SUPABASE_URL = 'https://aqdjghoroqzbasfkoinp.supabase.co';
@@ -7,7 +7,7 @@ const SUPABASE_KEY = 'sb_publishable_L4wpM4nLxHRYv5OucbQlLQ_X8EJMEOR';
 // 初始化 Supabase 客户端
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, onMounted, watch } = Vue;
 
 createApp({
     setup() {
@@ -19,12 +19,19 @@ createApp({
         const authForm = ref({ email: '', password: '', name: '', department: '' });
         const authError = ref('');
 
-        const currentView = ref('my-plans');
+        // 布局状态
+        const sidebarCollapsed = ref(false);
+        const currentView = ref('dashboard');
+        const showDrawer = ref(false);
+
+        // 数据
         const myPlans = ref([]);
         const allPlans = ref([]);
         const visibilitySettings = ref([]);
         const allProfiles = ref([]);
+        const systemConfig = ref([]);
 
+        // 弹窗状态
         const showCommentModal = ref(false);
         const showEditModal = ref(false);
         const showDetailModal = ref(false);
@@ -39,50 +46,202 @@ createApp({
         // 可见性设置
         const newVisibility = ref({ owner_id: '', viewer_id: '' });
 
-        // ===== 选项配置 =====
-        const scopeOptions = ['业务主体', '中后台', 'HRC', 'ODC', 'FNC', 'DIC', 'AIC', '万马', '嘀嗒嘀', '斯贝斯', '恒洋如易', '靠谱', 'CCC', '其他'];
-        const stageOptions = ['方法论--设计', '方法论--推广', '方法论--应用', '方法论--迭代', '方法论--审计', '常规支撑', '专项支撑', '其他规划'];
-        const subCategoryMap = {
-            '组织发展维度': ['组织管理', '流程管理', '方法论管理', '异常管理'],
-            '人力资源维度': ['招聘配置', '绩效管理', '员工关系'],
-            '业务发展维度': []
-        };
+        // 管理设置
+        const adminTab = ref('users');
+        const currentParamTab = ref('category_type');
+        const currentParamItems = ref([]);
 
-        // ===== 新计划表单 =====
+        // 参数标签页配置
+        const paramTabs = [
+            { key: 'category_type', label: '职能<管理三角>' },
+            { key: 'sub_category', label: '职能细分' },
+            { key: 'scope', label: '覆盖范围' },
+            { key: 'stage', label: '任务阶段' },
+            { key: 'measurable', label: '可衡量(M)' },
+            { key: 'achievable', label: '可实现(A)' },
+            { key: 'relevant', label: '相关性(R)' }
+        ];
+
+        // 新计划表单
         const newPlan = ref({
-            category: '业务发展维度', sub_category: '', main_project: '', sub_project: '',
-            description: '', scope: [], stage: '常规支撑', start_date: '', end_date: '',
-            measurable: '可计量', achievable: '一般', relevant: '业务-强关联',
+            category: '', sub_category: '', main_project: '', sub_project: '',
+            description: '', scope: [], stage: '', start_date: '', end_date: '',
+            measurable: '', achievable: '', relevant: '',
             owner: '', collaborators: '', progress: 0, notes: '', value_plan: '', value_review: ''
+        });
+
+        // ===== 从数据库读取的配置选项 =====
+        const categoryTypes = computed(() => {
+            return systemConfig.value
+                .filter(c => c.category === 'category_type' && c.is_active !== false)
+                .sort((a, b) => a.sort_order - b.sort_order)
+                .map(c => c.value);
+        });
+
+        const scopeOptions = computed(() => {
+            return systemConfig.value
+                .filter(c => c.category === 'scope' && c.is_active !== false)
+                .sort((a, b) => a.sort_order - b.sort_order)
+                .map(c => c.value);
+        });
+
+        const stageOptions = computed(() => {
+            return systemConfig.value
+                .filter(c => c.category === 'stage' && c.is_active !== false)
+                .sort((a, b) => a.sort_order - b.sort_order)
+                .map(c => c.value);
+        });
+
+        const measurableOptions = computed(() => {
+            return systemConfig.value
+                .filter(c => c.category === 'measurable' && c.is_active !== false)
+                .sort((a, b) => a.sort_order - b.sort_order)
+                .map(c => c.value);
+        });
+
+        const achievableOptions = computed(() => {
+            return systemConfig.value
+                .filter(c => c.category === 'achievable' && c.is_active !== false)
+                .sort((a, b) => a.sort_order - b.sort_order)
+                .map(c => c.value);
+        });
+
+        const relevantOptions = computed(() => {
+            return systemConfig.value
+                .filter(c => c.category === 'relevant' && c.is_active !== false)
+                .sort((a, b) => a.sort_order - b.sort_order)
+                .map(c => c.value);
+        });
+
+        const categoryOptions = computed(() => {
+            const items = systemConfig.value
+                .filter(c => c.category === 'sub_category' && c.parent_value === newPlan.value.category && c.is_active !== false)
+                .sort((a, b) => a.sort_order - b.sort_order)
+                .map(c => c.value);
+            return items;
         });
 
         // ===== 计算属性 =====
         const isAdmin = computed(() => profile.value?.role === 'admin');
-        const categoryOptions = computed(() => subCategoryMap[newPlan.value.category] || []);
         const departments = computed(() => [...new Set(allProfiles.value.map(p => p.department).filter(Boolean))]);
+
+        const viewTitle = computed(() => {
+            const titles = {
+                'dashboard': '🏠 驾驶舱',
+                'my-plans': '📋 我的工作计划',
+                'team-plans': '👥 团队工作计划',
+                'admin': '⚙️ 管理设置'
+            };
+            return titles[currentView.value] || '';
+        });
+
         const filteredAllPlans = computed(() => {
             let plans = allPlans.value;
             if (filterDepartment.value) plans = plans.filter(p => p.department === filterDepartment.value);
             if (searchKeyword.value) {
                 const keyword = searchKeyword.value.toLowerCase();
-                plans = plans.filter(p => p.description?.toLowerCase().includes(keyword) || p.main_project?.toLowerCase().includes(keyword) || p.director_name?.toLowerCase().includes(keyword));
+                plans = plans.filter(p =>
+                    p.description?.toLowerCase().includes(keyword) ||
+                    p.main_project?.toLowerCase().includes(keyword) ||
+                    p.director_name?.toLowerCase().includes(keyword)
+                );
             }
             return plans;
         });
 
+        // 驾驶舱统计
+        const completedPlans = computed(() => myPlans.value.filter(p => p.progress >= 100).length);
+        const inProgressPlans = computed(() => myPlans.value.filter(p => p.progress > 0 && p.progress < 100).length);
+        const overduePlans = computed(() => myPlans.value.filter(p => isOverdue(p)).length);
+        const avgProgress = computed(() => {
+            if (myPlans.value.length === 0) return 0;
+            return Math.round(myPlans.value.reduce((sum, p) => sum + (p.progress || 0), 0) / myPlans.value.length);
+        });
+
+        const categoryStats = computed(() => {
+            const stats = {};
+            myPlans.value.forEach(p => {
+                if (p.category) {
+                    stats[p.category] = (stats[p.category] || 0) + 1;
+                }
+            });
+            return Object.entries(stats).map(([name, count]) => ({ name, count }));
+        });
+
+        const exceptionPlans = computed(() => {
+            return myPlans.value.filter(p => isOverdue(p) || p.progress < 50);
+        });
+
+        const recentComments = computed(() => {
+            // 这里应该从数据库获取最近评论，暂时返回空数组
+            return [];
+        });
+
         // ===== 方法 =====
         function onCategoryChange() {
-            const options = subCategoryMap[newPlan.value.category];
-            newPlan.value.sub_category = options?.length > 0 ? options[0] : '';
+            const items = systemConfig.value
+                .filter(c => c.category === 'sub_category' && c.parent_value === newPlan.value.category)
+                .sort((a, b) => a.sort_order - b.sort_order);
+            newPlan.value.sub_category = items.length > 0 ? items[0].value : '';
+        }
+
+        function onEditCategoryChange() {
+            const items = systemConfig.value
+                .filter(c => c.category === 'sub_category' && c.parent_value === editingPlan.value.category)
+                .sort((a, b) => a.sort_order - b.sort_order);
+            if (items.length > 0 && !systemConfig.value.find(c => c.category === 'sub_category' && c.value === editingPlan.value.sub_category && c.parent_value === editingPlan.value.category)) {
+                editingPlan.value.sub_category = items[0].value;
+            }
+        }
+
+        function isOverdue(plan) {
+            if (!plan.end_date || plan.progress >= 100) return false;
+            return new Date(plan.end_date) < new Date();
+        }
+
+        function getExceptionType(plan) {
+            if (isOverdue(plan)) return 'overdue';
+            if (plan.progress < 50) return 'low-progress';
+            return '';
+        }
+
+        function getExceptionLabel(plan) {
+            if (isOverdue(plan)) return '已逾期';
+            if (plan.progress < 50) return '进度缓慢';
+            return '';
         }
 
         function resetNewPlan() {
             newPlan.value = {
-                category: '业务发展维度', sub_category: '', main_project: '', sub_project: '',
-                description: '', scope: [], stage: '常规支撑', start_date: '', end_date: '',
-                measurable: '可计量', achievable: '一般', relevant: '业务-强关联',
-                owner: '', collaborators: '', progress: 0, notes: '', value_plan: '', value_review: ''
+                category: categoryTypes.value[0] || '',
+                sub_category: '',
+                main_project: '',
+                sub_project: '',
+                description: '',
+                scope: [],
+                stage: stageOptions.value[0] || '',
+                start_date: '',
+                end_date: '',
+                measurable: measurableOptions.value[0] || '',
+                achievable: achievableOptions.value[0] || '',
+                relevant: relevantOptions.value[0] || '',
+                owner: '',
+                collaborators: '',
+                progress: 0,
+                notes: '',
+                value_plan: '',
+                value_review: ''
             };
+            onCategoryChange();
+        }
+
+        function openDrawer() {
+            resetNewPlan();
+            showDrawer.value = true;
+        }
+
+        function closeDrawer() {
+            showDrawer.value = false;
         }
 
         async function handleAuth() {
@@ -90,18 +249,24 @@ createApp({
             try {
                 if (authMode.value === 'login') {
                     const { data, error } = await supabaseClient.auth.signInWithPassword({
-                        email: authForm.value.email, password: authForm.value.password
+                        email: authForm.value.email,
+                        password: authForm.value.password
                     });
                     if (error) throw error;
                     user.value = data.user;
                     await fetchProfile();
                 } else {
                     const { data, error } = await supabaseClient.auth.signUp({
-                        email: authForm.value.email, password: authForm.value.password,
-                        options: { data: { name: authForm.value.name, department: authForm.value.department } }
+                        email: authForm.value.email,
+                        password: authForm.value.password,
+                        options: {
+                            data: {
+                                name: authForm.value.name,
+                                department: authForm.value.department
+                            }
+                        }
                     });
                     if (error) throw error;
-                    // 显示注册成功弹窗
                     showRegisterSuccess.value = true;
                 }
             } catch (error) {
@@ -123,6 +288,7 @@ createApp({
             allPlans.value = [];
         }
 
+        // ===== 数据获取 =====
         async function fetchProfile() {
             const { data } = await supabaseClient.from('profiles').select('*').eq('id', user.value.id).single();
             if (data) profile.value = data;
@@ -148,12 +314,32 @@ createApp({
             if (data) visibilitySettings.value = data;
         }
 
+        async function fetchSystemConfig() {
+            const { data } = await supabaseClient.from('system_config').select('*').order('sort_order');
+            if (data) systemConfig.value = data;
+        }
+
+        // ===== 计划操作 =====
         async function addPlan() {
-            if (!newPlan.value.description) { alert('请填写任务描述'); return; }
-            const planData = { ...newPlan.value, user_id: user.value.id, department: profile.value.department, director_name: profile.value.name };
+            if (!newPlan.value.description) {
+                alert('请填写任务描述');
+                return;
+            }
+            const planData = {
+                ...newPlan.value,
+                user_id: user.value.id,
+                department: profile.value.department,
+                director_name: profile.value.name
+            };
             const { data, error } = await supabaseClient.from('plans').insert(planData).select().single();
-            if (data) { myPlans.value.unshift(data); allPlans.value.unshift(data); resetNewPlan(); alert('添加成功！'); }
-            else if (error) alert('添加失败：' + error.message);
+            if (data) {
+                myPlans.value.unshift(data);
+                allPlans.value.unshift(data);
+                closeDrawer();
+                alert('添加成功！');
+            } else if (error) {
+                alert('添加失败：' + error.message);
+            }
         }
 
         function editPlan(plan) {
@@ -194,7 +380,9 @@ createApp({
                 if (allIndex > -1) allPlans.value[allIndex] = data;
                 showEditModal.value = false;
                 alert('更新成功！');
-            } else if (error) alert('更新失败：' + error.message);
+            } else if (error) {
+                alert('更新失败：' + error.message);
+            }
         }
 
         async function deletePlan(planId) {
@@ -204,9 +392,12 @@ createApp({
                 myPlans.value = myPlans.value.filter(p => p.id !== planId);
                 allPlans.value = allPlans.value.filter(p => p.id !== planId);
                 alert('删除成功！');
-            } else alert('删除失败：' + error.message);
+            } else {
+                alert('删除失败：' + error.message);
+            }
         }
 
+        // ===== 评论 =====
         async function showComments(plan) {
             selectedPlan.value = plan;
             showCommentModal.value = true;
@@ -217,11 +408,17 @@ createApp({
         async function addComment() {
             if (!newComment.value.content) return;
             const { data, error } = await supabaseClient.from('comments').insert({
-                plan_id: selectedPlan.value.id, user_id: user.value.id,
-                content: newComment.value.content, type: newComment.value.type
+                plan_id: selectedPlan.value.id,
+                user_id: user.value.id,
+                content: newComment.value.content,
+                type: newComment.value.type
             }).select().single();
-            if (data) { planComments.value.push(data); newComment.value = { content: '', type: 'comment' }; }
-            else if (error) alert('评论失败：' + error.message);
+            if (data) {
+                planComments.value.push(data);
+                newComment.value = { content: '', type: 'comment' };
+            } else if (error) {
+                alert('评论失败：' + error.message);
+            }
         }
 
         // ===== 管理员功能 =====
@@ -230,7 +427,9 @@ createApp({
             if (!error) {
                 await fetchAllProfiles();
                 alert('设置成功！');
-            } else alert('设置失败：' + error.message);
+            } else {
+                alert('设置失败：' + error.message);
+            }
         }
 
         async function removeAdmin(userId) {
@@ -238,7 +437,9 @@ createApp({
             if (!error) {
                 await fetchAllProfiles();
                 alert('取消成功！');
-            } else alert('取消失败：' + error.message);
+            } else {
+                alert('取消失败：' + error.message);
+            }
         }
 
         async function addVisibilitySetting() {
@@ -247,12 +448,18 @@ createApp({
                 return;
             }
             const { data, error } = await supabaseClient.from('visibility_settings')
-                .insert({ owner_id: newVisibility.value.owner_id, viewer_id: newVisibility.value.viewer_id, can_view: true })
+                .insert({
+                    owner_id: newVisibility.value.owner_id,
+                    viewer_id: newVisibility.value.viewer_id,
+                    can_view: true
+                })
                 .select().single();
             if (data) {
                 visibilitySettings.value.push(data);
                 newVisibility.value = { owner_id: '', viewer_id: '' };
-            } else alert('添加失败：' + error.message);
+            } else {
+                alert('添加失败：' + error.message);
+            }
         }
 
         async function updateVisibility(setting) {
@@ -261,50 +468,129 @@ createApp({
 
         async function deleteVisibilitySetting(settingId) {
             const { error } = await supabaseClient.from('visibility_settings').delete().eq('id', settingId);
-            if (!error) visibilitySettings.value = visibilitySettings.value.filter(s => s.id !== settingId);
+            if (!error) {
+                visibilitySettings.value = visibilitySettings.value.filter(s => s.id !== settingId);
+            }
         }
 
-        // ===== 下载模板 =====
+        // ===== 系统参数管理 =====
+        function loadParamConfig(category) {
+            currentParamItems.value = systemConfig.value
+                .filter(c => c.category === category)
+                .sort((a, b) => a.sort_order - b.sort_order)
+                .map(c => ({ ...c }));
+        }
+
+        function getCurrentParamLabel() {
+            const tab = paramTabs.find(t => t.key === currentParamTab.value);
+            return tab ? tab.label : '';
+        }
+
+        function getSubCategoryItems(parentValue) {
+            return currentParamItems.value.filter(c => c.parent_value === parentValue);
+        }
+
+        function addParamItem() {
+            if (currentParamTab.value === 'sub_category') {
+                // 对于职能细分，需要指定父级
+                const firstCategory = categoryTypes.value[0];
+                currentParamItems.value.push({
+                    category: 'sub_category',
+                    value: '',
+                    parent_value: firstCategory,
+                    sort_order: currentParamItems.value.length + 1,
+                    is_active: true,
+                    isNew: true
+                });
+            } else {
+                currentParamItems.value.push({
+                    category: currentParamTab.value,
+                    value: '',
+                    sort_order: currentParamItems.value.length + 1,
+                    is_active: true,
+                    isNew: true
+                });
+            }
+        }
+
+        async function removeParamItem(item) {
+            if (item.isNew) {
+                currentParamItems.value = currentParamItems.value.filter(i => i !== item);
+            } else if (item.id) {
+                const { error } = await supabaseClient.from('system_config').delete().eq('id', item.id);
+                if (!error) {
+                    currentParamItems.value = currentParamItems.value.filter(i => i.id !== item.id);
+                    systemConfig.value = systemConfig.value.filter(c => c.id !== item.id);
+                }
+            }
+        }
+
+        async function saveParamConfig() {
+            try {
+                for (const item of currentParamItems.value) {
+                    if (!item.value.trim()) continue;
+
+                    if (item.isNew) {
+                        // 新增
+                        const { data, error } = await supabaseClient.from('system_config')
+                            .insert({
+                                category: item.category,
+                                value: item.value,
+                                parent_value: item.parent_value || null,
+                                sort_order: item.sort_order,
+                                is_active: item.is_active
+                            })
+                            .select()
+                            .single();
+                        if (data) {
+                            systemConfig.value.push(data);
+                            item.id = data.id;
+                            delete item.isNew;
+                        }
+                    } else if (item.id) {
+                        // 更新
+                        await supabaseClient.from('system_config')
+                            .update({
+                                value: item.value,
+                                sort_order: item.sort_order,
+                                is_active: item.is_active,
+                                parent_value: item.parent_value || null
+                            })
+                            .eq('id', item.id);
+                        // 更新本地缓存
+                        const idx = systemConfig.value.findIndex(c => c.id === item.id);
+                        if (idx > -1) {
+                            systemConfig.value[idx] = { ...systemConfig.value[idx], ...item };
+                        }
+                    }
+                }
+                alert('保存成功！');
+            } catch (error) {
+                alert('保存失败：' + error.message);
+            }
+        }
+
+        // ===== Excel 功能 =====
         function downloadTemplate() {
             const templateData = [
                 {
-                    '职能<管理三角>': '业务发展维度',
-                    '职能细分': '财务管理',
+                    '职能<管理三角>': categoryTypes.value[0] || '业务发展维度',
+                    '职能细分': '',
                     '主项目名称': '1.预算与预测体系',
                     '子项目名称': '现金流预测',
                     '任务描述': '建立滚动预测模型，确保月度公司级与业务线战略目标与预算偏差≤10%',
                     '覆盖范围': '业务主体,中后台',
-                    '任务阶段': '常规支撑',
+                    '任务阶段': stageOptions.value[0] || '常规支撑',
                     '开始日期': '2026-03-01',
                     '结束日期': '2026-06-30',
-                    '可衡量(M)': '可计量',
-                    '可实现(A)': '一般',
-                    '相关性(R)': '业务-强关联',
+                    '可衡量(M)': measurableOptions.value[0] || '可计量',
+                    '可实现(A)': achievableOptions.value[0] || '一般',
+                    '相关性(R)': relevantOptions.value[0] || '业务-强关联',
                     '负责人': '张三',
                     '协同人': '李四,王五',
                     '当下进度': 0,
                     '备注': '示例备注',
                     '价值计划': '提升财务可视性与控制力',
-                    '价值评价': ''
-                },
-                {
-                    '职能<管理三角>': '组织发展维度',
-                    '职能细分': '组织管理',
-                    '主项目名称': '1.组织优化',
-                    '子项目名称': '海外公司架构设计',
-                    '任务描述': '新加坡总公司成立，支撑全球化战略',
-                    '覆盖范围': '业务主体',
-                    '任务阶段': '专项支撑',
-                    '开始日期': '',
-                    '结束日期': '',
-                    '可衡量(M)': '可感知',
-                    '可实现(A)': '困难',
-                    '相关性(R)': '管理-强关联',
-                    '负责人': '张三',
-                    '协同人': '',
-                    '当下进度': 0.1,
-                    '备注': '',
-                    '价值计划': '',
                     '价值评价': ''
                 }
             ];
@@ -313,33 +599,17 @@ createApp({
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, '年度计划模板');
 
-            // 设置列宽
             const colWidths = [
-                { wch: 15 }, // 职能<管理三角>
-                { wch: 12 }, // 职能细分
-                { wch: 18 }, // 主项目名称
-                { wch: 15 }, // 子项目名称
-                { wch: 40 }, // 任务描述
-                { wch: 20 }, // 覆盖范围
-                { wch: 12 }, // 任务阶段
-                { wch: 12 }, // 开始日期
-                { wch: 12 }, // 结束日期
-                { wch: 10 }, // 可衡量(M)
-                { wch: 10 }, // 可实现(A)
-                { wch: 12 }, // 相关性(R)
-                { wch: 10 }, // 负责人
-                { wch: 15 }, // 协同人
-                { wch: 10 }, // 当下进度
-                { wch: 20 }, // 备注
-                { wch: 20 }, // 价值计划
-                { wch: 20 }  // 价值评价
+                { wch: 15 }, { wch: 12 }, { wch: 18 }, { wch: 15 }, { wch: 40 },
+                { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 },
+                { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 10 },
+                { wch: 20 }, { wch: 20 }, { wch: 20 }
             ];
             worksheet['!cols'] = colWidths;
 
             XLSX.writeFile(workbook, '年度计划导入模板.xlsx');
         }
 
-        // ===== Excel 导入 =====
         async function handleFileImport(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -351,19 +621,15 @@ createApp({
                 const worksheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-                // 处理日期格式
                 const parseDate = (dateValue) => {
                     if (!dateValue) return null;
-                    // 如果是Excel日期数字
                     if (typeof dateValue === 'number') {
                         const date = new Date((dateValue - 25569) * 86400 * 1000);
                         return date.toISOString().split('T')[0];
                     }
-                    // 如果是字符串
                     if (typeof dateValue === 'string') {
                         const cleaned = dateValue.trim();
                         if (!cleaned) return null;
-                        // 尝试解析日期
                         const date = new Date(cleaned);
                         if (!isNaN(date.getTime())) {
                             return date.toISOString().split('T')[0];
@@ -372,7 +638,6 @@ createApp({
                     return null;
                 };
 
-                // 处理进度值
                 const parseProgress = (value) => {
                     if (!value) return 0;
                     if (typeof value === 'number') return Math.min(100, Math.max(0, Math.round(value * 100)));
@@ -389,7 +654,6 @@ createApp({
                 let errorCount = 0;
 
                 for (const row of jsonData) {
-                    // 跳过没有描述的行
                     const description = row['任务描述'] || row['描述'] || '';
                     if (!description.trim()) continue;
 
@@ -397,18 +661,18 @@ createApp({
                         user_id: user.value.id,
                         department: profile.value.department,
                         director_name: profile.value.name,
-                        category: row['职能<管理三角>'] || row['职能分类'] || '业务发展维度',
+                        category: row['职能<管理三角>'] || row['职能分类'] || categoryTypes.value[0] || '',
                         sub_category: row['职能细分'] || '',
                         main_project: row['主项目名称'] || row['主项目'] || '',
                         sub_project: row['子项目名称'] || row['子项目'] || '',
                         description: description,
                         scope: row['覆盖范围'] ? row['覆盖范围'].toString().split(/[,，]/).map(s => s.trim()).filter(s => s) : [],
-                        stage: row['任务阶段'] || '常规支撑',
+                        stage: row['任务阶段'] || stageOptions.value[0] || '',
                         start_date: parseDate(row['开始日期'] || row['预计开始时间']),
                         end_date: parseDate(row['结束日期'] || row['预计结束时间']),
-                        measurable: row['可衡量(M)'] || row['可衡量'] || '可计量',
-                        achievable: row['可实现(A)'] || row['可实现'] || '一般',
-                        relevant: row['相关性(R)'] || row['相关性'] || '业务-强关联',
+                        measurable: row['可衡量(M)'] || row['可衡量'] || measurableOptions.value[0] || '',
+                        achievable: row['可实现(A)'] || row['可实现'] || achievableOptions.value[0] || '',
+                        relevant: row['相关性(R)'] || row['相关性'] || relevantOptions.value[0] || '',
                         owner: row['负责人'] || '',
                         collaborators: row['协同人'] || '',
                         progress: parseProgress(row['当下进度'] || row['进度']),
@@ -441,6 +705,7 @@ createApp({
             }
         }
 
+        // ===== 工具函数 =====
         function getUserName(userId) {
             const p = allProfiles.value.find(p => p.id === userId);
             return p?.name || '未知用户';
@@ -448,7 +713,12 @@ createApp({
 
         function formatDate(dateStr) {
             if (!dateStr) return '';
-            return new Date(dateStr).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+            return new Date(dateStr).toLocaleDateString('zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
         }
 
         // ===== 生命周期 =====
@@ -457,6 +727,7 @@ createApp({
             if (session?.user) {
                 user.value = session.user;
                 await fetchProfile();
+                await fetchSystemConfig();
                 await fetchMyPlans();
                 await fetchAllPlans();
                 await fetchAllProfiles();
@@ -467,26 +738,61 @@ createApp({
                 if (event === 'SIGNED_IN' && session?.user) {
                     user.value = session.user;
                     await fetchProfile();
+                    await fetchSystemConfig();
                     await fetchMyPlans();
                     await fetchAllPlans();
                     await fetchAllProfiles();
                     if (isAdmin.value) await fetchVisibilitySettings();
                 } else if (event === 'SIGNED_OUT') {
-                    user.value = null; profile.value = null; myPlans.value = []; allPlans.value = [];
+                    user.value = null;
+                    profile.value = null;
+                    myPlans.value = [];
+                    allPlans.value = [];
                 }
             });
             loading.value = false;
         });
 
         return {
-            loading, user, profile, authMode, authForm, authError, currentView, myPlans, allPlans,
-            visibilitySettings, allProfiles, showCommentModal, showEditModal, showDetailModal,
-            showRegisterSuccess, selectedPlan, planComments, newComment, editingPlan, filterDepartment, searchKeyword, newPlan,
-            newVisibility, scopeOptions, stageOptions, categoryOptions, isAdmin, departments, filteredAllPlans,
-            onCategoryChange, resetNewPlan, handleAuth, handleLogout, addPlan, editPlan, updatePlan,
-            deletePlan, showComments, addComment, viewPlanDetail, handleFileImport, downloadTemplate,
-            setAdmin, removeAdmin, addVisibilitySetting, updateVisibility, deleteVisibilitySetting,
-            getUserName, formatDate, closeRegisterSuccess
+            // 状态
+            loading, user, profile, authMode, authForm, authError,
+            sidebarCollapsed, currentView, showDrawer,
+            myPlans, allPlans, visibilitySettings, allProfiles, systemConfig,
+            showCommentModal, showEditModal, showDetailModal, showRegisterSuccess,
+            selectedPlan, planComments, newComment, editingPlan,
+            filterDepartment, searchKeyword, newPlan, newVisibility,
+
+            // 管理设置
+            adminTab, currentParamTab, currentParamItems, paramTabs,
+
+            // 配置选项
+            categoryTypes, scopeOptions, stageOptions, categoryOptions,
+            measurableOptions, achievableOptions, relevantOptions,
+
+            // 计算属性
+            isAdmin, departments, viewTitle, filteredAllPlans,
+            completedPlans, inProgressPlans, overduePlans, avgProgress,
+            categoryStats, exceptionPlans, recentComments,
+
+            // 方法
+            onCategoryChange, onEditCategoryChange, resetNewPlan,
+            openDrawer, closeDrawer,
+            handleAuth, handleLogout, closeRegisterSuccess,
+            addPlan, editPlan, updatePlan, deletePlan,
+            showComments, addComment, viewPlanDetail,
+            handleFileImport, downloadTemplate,
+
+            // 管理员
+            setAdmin, removeAdmin,
+            addVisibilitySetting, updateVisibility, deleteVisibilitySetting,
+
+            // 参数管理
+            loadParamConfig, getCurrentParamLabel, getSubCategoryItems,
+            addParamItem, removeParamItem, saveParamConfig,
+
+            // 工具
+            getUserName, formatDate, isOverdue,
+            getExceptionType, getExceptionLabel
         };
     }
 }).mount('#app');
