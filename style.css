@@ -444,40 +444,45 @@ body {
 }
 
 /* ===== 驾驶舱 ===== */
+/* 宏观数据看板 - 4个卡片排一行 */
 .dashboard-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
     margin-bottom: 0;
+}
+
+/* 绩效看板 - 3个卡片排一行 */
+.performance-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
 }
 
 .stat-card {
     background: var(--bg-card);
     border-radius: var(--radius);
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
+    padding: 16px;
+    text-align: center;
     box-shadow: var(--shadow);
 }
 
-.stat-card.exception {
-    border-left: 4px solid var(--danger);
+.stat-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
 }
 
-.stat-icon {
-    font-size: 2.5rem;
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
 }
 
 .stat-value {
     font-size: 2rem;
     font-weight: 600;
     color: var(--text-primary);
-}
-
-.stat-label {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
 }
 
 .dashboard-section {
@@ -496,7 +501,7 @@ body {
 /* 绩效看板 */
 .performance-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
 }
 
@@ -517,6 +522,43 @@ body {
     font-size: 1.75rem;
     font-weight: 600;
     color: var(--rem-blue);
+}
+
+/* 绩效指标说明 */
+.metric-legend {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.metric-legend h4 {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.metric-legend .legend-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+}
+
+.metric-legend .legend-tag {
+    background: var(--rem-blue-light);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    min-width: 70px;
+    text-align: center;
+}
+
+.metric-legend .legend-desc {
+    color: var(--text-muted);
+    line-height: 1.4;
 }
 
 /* 通知看板 */
@@ -780,6 +822,8 @@ body {
 
 .dashboard-grid .dashboard-section {
     margin-bottom: 0;
+    min-width: 0; /* 防止内容撑开 */
+    width: 100%;
 }
 
 @media (max-width: 1200px) {
@@ -872,9 +916,38 @@ body {
     background: var(--rem-blue);
 }
 
+/* 操作列内的按钮容器垂直居中 */
+.plans-table.full-table .fixed-col.actions-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
 /* 表格内容 */
 .plans-table.full-table tbody tr:hover {
     background: var(--bg-main);
+}
+
+/* ===== 固定行高（2行显示） ===== */
+/* 所有单元格统一高度 */
+.plans-table.full-table tbody td {
+    height: 52px;
+    max-height: 52px;
+    vertical-align: middle;
+    overflow: hidden;
+}
+
+/* 可换行单元格的通用样式 - 显示2行，超出省略（用于td内部的div） */
+.cell-two-line {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal !important;
+    line-height: 1.4;
+    max-height: 44px;
 }
 
 /* ===== 字段宽度优化 ===== */
@@ -882,23 +955,53 @@ body {
 .description-cell {
     min-width: 300px;
     max-width: 500px;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-/* 覆盖范围列 - 允许换行，固定宽度 */
+/* 覆盖范围列 - 加宽一倍，显示2行，标签堆叠限制 */
 .scope-cell {
-    min-width: 100px;
-    max-width: 200px;
-    white-space: normal !important;
+    min-width: 200px;
+    max-width: 400px;
+    width: 300px;
 }
 
-/* 备注列 */
-.notes-cell {
-    min-width: 150px;
-    max-width: 300px;
+/* 覆盖范围标签容器 - 限制高度，隐藏溢出 */
+.scope-cell .cell-two-line {
+    display: block;
+    max-height: 44px;
     overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.5;
+}
+
+.scope-tag {
+    display: inline-block;
+    background: var(--bg-main);
+    color: var(--text-secondary);
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    margin-right: 3px;
+    margin-bottom: 2px;
+    line-height: 1.3;
+}
+
+/* 子项目名称列 - 固定宽度，显示2行 */
+.sub-project-cell {
+    min-width: 120px;
+    max-width: 150px;
+    width: 130px;
+}
+
+/* 协同人列 - 固定宽度，显示2行 */
+.collaborators-cell {
+    min-width: 80px;
+    max-width: 120px;
+    width: 100px;
+}
+
+/* 备注列 - 和任务描述同宽 */
+.notes-cell {
+    min-width: 300px;
+    max-width: 500px;
 }
 
 /* 表头列宽设置 */
@@ -1007,18 +1110,6 @@ body {
     padding: 8px 10px;  /* 从 10px 12px 减少到 8px 10px */
     text-align: left;
     border-bottom: 1px solid var(--border-color);
-}
-
-/* ===== 标签样式 ===== */
-.scope-tag {
-    display: inline-block;
-    background: var(--bg-main);
-    color: var(--text-secondary);
-    padding: 2px 6px;
-    border-radius: 8px;
-    font-size: 0.7rem;
-    margin-right: 3px;
-    margin-bottom: 2px;
 }
 
 /* ===== 进度条 ===== */

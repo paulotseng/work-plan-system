@@ -49,6 +49,10 @@ createApp({
         const searchKeyword = ref('');
         const searchKeywordTeam = ref('');
 
+        // 团队工作计划的职能筛选
+        const filterCategoryTeam = ref('');
+        const filterSubCategoryTeam = ref('');
+
         // 批量删除状态
         const batchDeleteMode = ref(false);
         const selectedPlanIds = ref([]);
@@ -133,33 +137,77 @@ createApp({
             return plans;
         });
 
-        // 根据已选职能<管理三角>动态生成可用的职能细分选项
+        // 根据已选职能<管理三角>动态生成可用的职能细分选项（基于当前数据中实际存在的值）
         const availableSubCategories = computed(() => {
-            if (!filterCategory.value) {
-                // 如果没有选择职能<管理三角>，返回所有职能细分
-                const allSubs = [];
-                Object.values(subCategoryMap.value).forEach(subs => {
-                    allSubs.push(...subs);
-                });
-                return [...new Set(allSubs)];
+            // 先获取当前用户的数据
+            let filteredPlans = myPlans.value;
+
+            // 如果选择了职能，则只筛选符合该职能的数据
+            if (filterCategory.value) {
+                filteredPlans = filteredPlans.filter(p => p.category === filterCategory.value);
             }
-            return subCategoryMap.value[filterCategory.value] || [];
+
+            // 从筛选后的数据中提取实际存在的职能细分值（去重、排除空值）
+            const actualSubs = filteredPlans
+                .map(p => p.sub_category)
+                .filter(sub => sub && sub.trim() !== '');
+
+            return [...new Set(actualSubs)];
         });
 
         // 当职能<管理三角>改变时，清空职能细分选择（如果当前选择不在新列表中）
         watch(filterCategory, (newCategory) => {
             if (filterSubCategory.value) {
-                const availableSubs = subCategoryMap.value[newCategory] || [];
-                if (!availableSubs.includes(filterSubCategory.value)) {
+                // 获取新数据中实际存在的职能细分值
+                const filteredPlans = newCategory
+                    ? myPlans.value.filter(p => p.category === newCategory)
+                    : myPlans.value;
+                const actualSubs = [...new Set(filteredPlans.map(p => p.sub_category).filter(s => s))];
+                if (!actualSubs.includes(filterSubCategory.value)) {
                     filterSubCategory.value = '';
                 }
             }
+        });
+
+        // 团队工作计划的职能选项（基于全部数据）
+        const categoryOptionsTeam = computed(() => {
+            const cats = allPlans.value.map(p => p.category).filter(c => c);
+            return [...new Set(cats)];
+        });
+
+        // 团队工作计划的职能细分选项（基于当前筛选的数据）
+        const availableSubCategoriesTeam = computed(() => {
+            let filteredPlans = allPlans.value;
+
+            // 先按部门筛选
+            if (filterDepartment.value) {
+                filteredPlans = filteredPlans.filter(p => p.department === filterDepartment.value);
+            }
+
+            // 如果选择了职能，则只筛选符合该职能的数据
+            if (filterCategoryTeam.value) {
+                filteredPlans = filteredPlans.filter(p => p.category === filterCategoryTeam.value);
+            }
+
+            // 从筛选后的数据中提取实际存在的职能细分值
+            const actualSubs = filteredPlans
+                .map(p => p.sub_category)
+                .filter(sub => sub && sub.trim() !== '');
+
+            return [...new Set(actualSubs)];
+        });
+
+        // 当团队职能改变时，清空职能细分选择
+        watch(filterCategoryTeam, () => {
+            filterSubCategoryTeam.value = '';
         });
 
         // 筛选后的全部计划
         const filteredAllPlans = computed(() => {
             let plans = allPlans.value;
             if (filterDepartment.value) plans = plans.filter(p => p.department === filterDepartment.value);
+            if (filterCategoryTeam.value) plans = plans.filter(p => p.category === filterCategoryTeam.value);
+            if (filterSubCategoryTeam.value) plans = plans.filter(p => p.sub_category === filterSubCategoryTeam.value);
             if (searchKeywordTeam.value) {
                 const keyword = searchKeywordTeam.value.toLowerCase();
                 plans = plans.filter(p => p.description?.toLowerCase().includes(keyword) || p.director_name?.toLowerCase().includes(keyword));
@@ -1276,7 +1324,9 @@ createApp({
             batchDeleteMode, selectedPlanIds, toggleBatchDeleteMode, togglePlanSelection, isPlanSelected,
             selectAllPlans, isAllSelected, batchDeletePlans,
             // 职能细分筛选
-            filterSubCategory, availableSubCategories
+            filterSubCategory, availableSubCategories,
+            // 团队工作计划筛选
+            filterCategoryTeam, filterSubCategoryTeam, categoryOptionsTeam, availableSubCategoriesTeam
         };
     }
 }).mount('#app');

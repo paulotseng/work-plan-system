@@ -143,31 +143,27 @@
                             <h3>📊 宏观数据看板</h3>
                             <div class="dashboard-cards">
                                 <div class="stat-card">
-                                    <div class="stat-icon">📝</div>
                                     <div class="stat-info">
-                                        <div class="stat-value">{{ myPlans.length }}</div>
                                         <div class="stat-label">我的计划数</div>
+                                        <div class="stat-value">{{ myPlans.length }}</div>
                                     </div>
                                 </div>
                                 <div class="stat-card">
-                                    <div class="stat-icon">✅</div>
                                     <div class="stat-info">
-                                        <div class="stat-value">{{ myPlans.filter(p => p.progress === 100).length }}</div>
                                         <div class="stat-label">已完成</div>
+                                        <div class="stat-value">{{ myPlans.filter(p => p.progress === 100).length }}</div>
                                     </div>
                                 </div>
                                 <div class="stat-card">
-                                    <div class="stat-icon">⏳</div>
                                     <div class="stat-info">
-                                        <div class="stat-value">{{ myPlans.filter(p => p.progress < 100 && p.end_date && new Date(p.end_date) > new Date()).length }}</div>
                                         <div class="stat-label">进行中</div>
+                                        <div class="stat-value">{{ myPlans.filter(p => p.progress < 100 && p.end_date && new Date(p.end_date) > new Date()).length }}</div>
                                     </div>
                                 </div>
-                                <div class="stat-card exception">
-                                    <div class="stat-icon">⚠️</div>
+                                <div class="stat-card">
                                     <div class="stat-info">
-                                        <div class="stat-value">{{ exceptionPlans.length }}</div>
                                         <div class="stat-label">异常任务</div>
+                                        <div class="stat-value">{{ exceptionPlans.length }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -188,6 +184,22 @@
                                 <div class="perf-card">
                                     <div class="perf-label">本周完成</div>
                                     <div class="perf-value">{{ weeklyCompleted }}</div>
+                                </div>
+                            </div>
+                            <!-- 绩效指标说明 -->
+                            <div class="metric-legend">
+                                <h4>📌 指标计算说明</h4>
+                                <div class="legend-item">
+                                    <span class="legend-tag">平均完成率</span>
+                                    <span class="legend-desc">所有计划完成率的平均值 = Σ(各计划进度) ÷ 计划总数</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-tag">按时完成率</span>
+                                    <span class="legend-desc">已完成且未超期的计划占比 = (完成时间 ≤ 截止日期的计划数 ÷ 已完成计划总数) × 100%</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-tag">本周完成</span>
+                                    <span class="legend-desc">最近7天内完成（进度达到100%）的计划数量</span>
                                 </div>
                             </div>
                         </div>
@@ -261,8 +273,8 @@
                                 <option value="">全部职能</option>
                                 <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
                             </select>
-                            <select v-model="filterSubCategory" :disabled="!filterCategory">
-                                <option value="">{{ filterCategory ? '全部细分' : '请先选择职能' }}</option>
+                            <select v-model="filterSubCategory">
+                                <option value="">全部细分</option>
                                 <option v-for="sub in availableSubCategories" :key="sub" :value="sub">{{ sub }}</option>
                             </select>
                             <input type="text" v-model="searchKeyword" placeholder="搜索任务...">
@@ -323,15 +335,15 @@
                                     </td>
                                     <td>{{ plan.category }}</td>
                                     <td>{{ plan.sub_category || '-' }}</td>
-                                    <td>{{ plan.main_project || '-' }}</td>
-                                    <td>{{ plan.sub_project || '-' }}</td>
-                                    <td class="description-cell">{{ plan.description }}</td>
-                                    <td class="scope-cell"><span v-for="s in plan.scope" :key="s" class="scope-tag">{{ s }}</span></td>
+                                    <td><div class="cell-two-line">{{ plan.main_project || '-' }}</div></td>
+                                    <td class="sub-project-cell"><div class="cell-two-line">{{ plan.sub_project || '-' }}</div></td>
+                                    <td class="description-cell"><div class="cell-two-line">{{ plan.description }}</div></td>
+                                    <td class="scope-cell"><div class="cell-two-line"><span v-for="s in plan.scope" :key="s" class="scope-tag">{{ s }}</span></div></td>
                                     <td>{{ plan.stage }}</td>
                                     <td>{{ plan.start_date || '-' }}</td>
                                     <td>{{ plan.end_date || '-' }}</td>
                                     <td>{{ plan.owner || '-' }}</td>
-                                    <td>{{ plan.collaborators || '-' }}</td>
+                                    <td class="collaborators-cell"><div class="cell-two-line">{{ plan.collaborators || '-' }}</div></td>
                                     <td>
                                         <div class="progress-cell">
                                             <div class="progress-bar">
@@ -340,7 +352,7 @@
                                             <span class="progress-text">{{ plan.progress || 0 }}%</span>
                                         </div>
                                     </td>
-                                    <td class="notes-cell">{{ plan.notes || '-' }}</td>
+                                    <td class="notes-cell"><div class="cell-two-line">{{ plan.notes || '-' }}</div></td>
                                     <td class="fixed-col actions-cell">
                                         <button @click="editPlan(plan)" class="btn-icon" title="编辑">✏️</button>
                                         <button @click="deletePlan(plan.id)" class="btn-icon" title="删除">🗑️</button>
@@ -360,11 +372,21 @@
 
                     <!-- 筛选栏 - 固定不动 -->
                     <div class="filter-bar">
-                        <select v-model="filterDepartment">
-                            <option value="">全部部门</option>
-                            <option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
-                        </select>
-                        <input type="text" v-model="searchKeywordTeam" placeholder="搜索任务...">
+                        <div class="filter-left">
+                            <select v-model="filterDepartment">
+                                <option value="">全部部门</option>
+                                <option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
+                            </select>
+                            <select v-model="filterCategoryTeam">
+                                <option value="">全部职能</option>
+                                <option v-for="cat in categoryOptionsTeam" :key="cat" :value="cat">{{ cat }}</option>
+                            </select>
+                            <select v-model="filterSubCategoryTeam">
+                                <option value="">全部细分</option>
+                                <option v-for="sub in availableSubCategoriesTeam" :key="sub" :value="sub">{{ sub }}</option>
+                            </select>
+                            <input type="text" v-model="searchKeywordTeam" placeholder="搜索任务...">
+                        </div>
                     </div>
 
                     <!-- 表格容器 - 只有这部分滚动 -->
@@ -398,15 +420,15 @@
                                 <tr v-for="plan in filteredAllPlans" :key="plan.id">
                                     <td>{{ plan.category }}</td>
                                     <td>{{ plan.sub_category || '-' }}</td>
-                                    <td>{{ plan.main_project || '-' }}</td>
-                                    <td>{{ plan.sub_project || '-' }}</td>
-                                    <td class="description-cell">{{ plan.description }}</td>
-                                    <td><span v-for="s in plan.scope" :key="s" class="scope-tag">{{ s }}</span></td>
+                                    <td><div class="cell-two-line">{{ plan.main_project || '-' }}</div></td>
+                                    <td class="sub-project-cell"><div class="cell-two-line">{{ plan.sub_project || '-' }}</div></td>
+                                    <td class="description-cell"><div class="cell-two-line">{{ plan.description }}</div></td>
+                                    <td class="scope-cell"><div class="cell-two-line"><span v-for="s in plan.scope" :key="s" class="scope-tag">{{ s }}</span></div></td>
                                     <td>{{ plan.stage }}</td>
                                     <td>{{ plan.start_date || '-' }}</td>
                                     <td>{{ plan.end_date || '-' }}</td>
                                     <td>{{ plan.owner || '-' }}</td>
-                                    <td>{{ plan.collaborators || '-' }}</td>
+                                    <td class="collaborators-cell"><div class="cell-two-line">{{ plan.collaborators || '-' }}</div></td>
                                     <td>
                                         <div class="progress-cell">
                                             <div class="progress-bar">
@@ -415,7 +437,7 @@
                                             <span class="progress-text">{{ plan.progress || 0 }}%</span>
                                         </div>
                                     </td>
-                                    <td class="col-wide">{{ plan.notes || '-' }}</td>
+                                    <td class="col-wide"><div class="cell-two-line">{{ plan.notes || '-' }}</div></td>
                                     <td class="fixed-col actions-cell">
                                         <button @click="viewPlanDetail(plan)" class="btn-icon" title="查看">👁️</button>
                                         <button @click="showComments(plan)" class="btn-icon" title="评论">💬</button>
