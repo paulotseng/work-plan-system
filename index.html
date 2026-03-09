@@ -261,10 +261,27 @@
                                 <option value="">全部职能</option>
                                 <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
                             </select>
+                            <select v-model="filterSubCategory" :disabled="!filterCategory">
+                                <option value="">{{ filterCategory ? '全部细分' : '请先选择职能' }}</option>
+                                <option v-for="sub in availableSubCategories" :key="sub" :value="sub">{{ sub }}</option>
+                            </select>
                             <input type="text" v-model="searchKeyword" placeholder="搜索任务...">
                         </div>
                         <div class="filter-right">
-                            <button @click="showDrawer = true" class="btn-primary">➕ 添加任务</button>
+                            <template v-if="batchDeleteMode">
+                                <span class="batch-info">已选 {{ selectedPlanIds.length }} 项</span>
+                                <button @click="selectAllPlans" class="btn-secondary">
+                                    {{ isAllSelected() ? '取消全选' : '全选' }}
+                                </button>
+                                <button @click="batchDeletePlans" class="btn-danger" :disabled="selectedPlanIds.length === 0">
+                                    🗑️ 删除选中
+                                </button>
+                                <button @click="toggleBatchDeleteMode" class="btn-secondary">取消</button>
+                            </template>
+                            <template v-else>
+                                <button @click="toggleBatchDeleteMode" class="btn-secondary">☑️ 批量删除</button>
+                                <button @click="showDrawer = true" class="btn-primary">➕ 添加任务</button>
+                            </template>
                         </div>
                     </div>
 
@@ -273,36 +290,43 @@
                         <table class="plans-table full-table">
                             <thead>
                                 <tr class="header-row-1">
+                                    <th v-if="batchDeleteMode" class="header-checkbox">选择</th>
                                     <th colspan="2" class="header-group">职能分类</th>
                                     <th colspan="7" class="header-group">计划描述</th>
                                     <th colspan="4" class="header-group">任务执行</th>
                                     <th class="header-action">操作</th>
                                 </tr>
                                 <tr class="header-row-2">
+                                    <th v-if="batchDeleteMode" class="header-checkbox">
+                                        <input type="checkbox" :checked="isAllSelected()" @change="selectAllPlans">
+                                    </th>
                                     <th>职能<管理三角></th>
                                     <th>职能细分</th>
                                     <th>主项目名称</th>
                                     <th>子项目名称</th>
-                                    <th>任务描述</th>
-                                    <th>覆盖范围</th>
+                                    <th class="col-description">任务描述</th>
+                                    <th class="col-scope">覆盖范围</th>
                                     <th>任务阶段</th>
                                     <th>开始日期</th>
                                     <th>结束日期</th>
                                     <th>负责人</th>
                                     <th>协同人</th>
                                     <th>当下进度</th>
-                                    <th class="col-wide">备注</th>
+                                    <th class="col-notes">备注</th>
                                     <th class="fixed-col">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="plan in filteredMyPlans" :key="plan.id">
+                                <tr v-for="plan in filteredMyPlans" :key="plan.id" :class="{ 'row-selected': isPlanSelected(plan.id) }">
+                                    <td v-if="batchDeleteMode" class="cell-checkbox">
+                                        <input type="checkbox" :checked="isPlanSelected(plan.id)" @change="togglePlanSelection(plan.id)">
+                                    </td>
                                     <td>{{ plan.category }}</td>
                                     <td>{{ plan.sub_category || '-' }}</td>
                                     <td>{{ plan.main_project || '-' }}</td>
                                     <td>{{ plan.sub_project || '-' }}</td>
                                     <td class="description-cell">{{ plan.description }}</td>
-                                    <td><span v-for="s in plan.scope" :key="s" class="scope-tag">{{ s }}</span></td>
+                                    <td class="scope-cell"><span v-for="s in plan.scope" :key="s" class="scope-tag">{{ s }}</span></td>
                                     <td>{{ plan.stage }}</td>
                                     <td>{{ plan.start_date || '-' }}</td>
                                     <td>{{ plan.end_date || '-' }}</td>
@@ -316,7 +340,7 @@
                                             <span class="progress-text">{{ plan.progress || 0 }}%</span>
                                         </div>
                                     </td>
-                                    <td class="col-wide">{{ plan.notes || '-' }}</td>
+                                    <td class="notes-cell">{{ plan.notes || '-' }}</td>
                                     <td class="fixed-col actions-cell">
                                         <button @click="editPlan(plan)" class="btn-icon" title="编辑">✏️</button>
                                         <button @click="deletePlan(plan.id)" class="btn-icon" title="删除">🗑️</button>

@@ -44,9 +44,14 @@ createApp({
         // 筛选
         const filterDepartment = ref('');
         const filterCategory = ref('');
+        const filterSubCategory = ref('');  // 新增：职能细分筛选
         const filterStage = ref('');
         const searchKeyword = ref('');
         const searchKeywordTeam = ref('');
+
+        // 批量删除状态
+        const batchDeleteMode = ref(false);
+        const selectedPlanIds = ref([]);
 
         // 可见性设置
         const newVisibility = ref({ owner_id: '', viewer_id: '' });
@@ -121,7 +126,34 @@ createApp({
                 const keyword = searchKeyword.value.toLowerCase();
                 plans = plans.filter(p => p.description?.toLowerCase().includes(keyword));
             }
+            // 新增：职能细分筛选
+            if (filterSubCategory.value) {
+                plans = plans.filter(p => p.sub_category === filterSubCategory.value);
+            }
             return plans;
+        });
+
+        // 根据已选职能<管理三角>动态生成可用的职能细分选项
+        const availableSubCategories = computed(() => {
+            if (!filterCategory.value) {
+                // 如果没有选择职能<管理三角>，返回所有职能细分
+                const allSubs = [];
+                Object.values(subCategoryMap.value).forEach(subs => {
+                    allSubs.push(...subs);
+                });
+                return [...new Set(allSubs)];
+            }
+            return subCategoryMap.value[filterCategory.value] || [];
+        });
+
+        // 当职能<管理三角>改变时，清空职能细分选择（如果当前选择不在新列表中）
+        watch(filterCategory, (newCategory) => {
+            if (filterSubCategory.value) {
+                const availableSubs = subCategoryMap.value[newCategory] || [];
+                if (!availableSubs.includes(filterSubCategory.value)) {
+                    filterSubCategory.value = '';
+                }
+            }
         });
 
         // 筛选后的全部计划
@@ -493,6 +525,73 @@ createApp({
             } else alert('删除失败：' + error.message);
         }
 
+        // ===== 批量删除功能 =====
+        function toggleBatchDeleteMode() {
+            batchDeleteMode.value = !batchDeleteMode.value;
+            if (!batchDeleteMode.value) {
+                selectedPlanIds.value = [];  // 退出模式时清空选择
+            }
+        }
+
+        function togglePlanSelection(planId) {
+            const index = selectedPlanIds.value.indexOf(planId);
+            if (index > -1) {
+                selectedPlanIds.value.splice(index, 1);
+            } else {
+                selectedPlanIds.value.push(planId);
+            }
+        }
+
+        function isPlanSelected(planId) {
+            return selectedPlanIds.value.includes(planId);
+        }
+
+        function selectAllPlans() {
+            if (selectedPlanIds.value.length === filteredMyPlans.value.length) {
+                selectedPlanIds.value = [];  // 全部取消
+            } else {
+                selectedPlanIds.value = filteredMyPlans.value.map(p => p.id);  // 全选
+            }
+        }
+
+        function isAllSelected() {
+            return filteredMyPlans.value.length > 0 && selectedPlanIds.value.length === filteredMyPlans.value.length;
+        }
+
+        async function batchDeletePlans() {
+            if (selectedPlanIds.value.length === 0) {
+                alert('请先选择要删除的计划');
+                return;
+            }
+
+            const count = selectedPlanIds.value.length;
+            if (!confirm(`确定要删除选中的 ${count} 条计划吗？\n\n此操作不可撤销！`)) return;
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const planId of selectedPlanIds.value) {
+                const { error } = await supabaseClient.from('plans').delete().eq('id', planId);
+                if (!error) {
+                    myPlans.value = myPlans.value.filter(p => p.id !== planId);
+                    allPlans.value = allPlans.value.filter(p => p.id !== planId);
+                    successCount++;
+                } else {
+                    failCount++;
+                    console.error('删除失败:', planId, error);
+                }
+            }
+
+            selectedPlanIds.value = [];
+            batchDeleteMode.value = false;
+
+            if (failCount === 0) {
+                alert(`✅ 成功删除 ${successCount} 条计划！`);
+            } else {
+                alert(`删除完成：成功 ${successCount} 条，失败 ${failCount} 条`);
+            }
+        }
+
         async function showComments(plan) {
             selectedPlan.value = plan;
             showCommentModal.value = true;
@@ -708,13 +807,39 @@ createApp({
 
                 const parseDate = (dateValue) => {
                     if (!dateValue) return null;
+
+                    // 数字类型（Excel 序列号）
                     if (typeof dateValue === 'number') {
                         const date = new Date((dateValue - 25569) * 86400 * 1000);
                         return date.toISOString().split('T')[0];
                     }
+
                     if (typeof dateValue === 'string') {
                         const cleaned = dateValue.trim();
                         if (!cleaned) return null;
+
+                        // 尝试解析中文日期格式（如"3月2日"、"2026年3月2日"）
+                        const chinesePattern1 = /^(\d{4})年(\d{1,2})月(\d{1,2})日$/;
+                        const chinesePattern2 = /^(\d{1,2})月(\d{1,2})日$/;
+
+                        let match = cleaned.match(chinesePattern1);
+                        if (match) {
+                            const year = parseInt(match[1]);
+                            const month = parseInt(match[2]);
+                            const day = parseInt(match[3]);
+                            return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                        }
+
+                        match = cleaned.match(chinesePattern2);
+                        if (match) {
+                            // 如果没有年份，默认使用当前年份
+                            const year = new Date().getFullYear();
+                            const month = parseInt(match[1]);
+                            const day = parseInt(match[2]);
+                            return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                        }
+
+                        // 标准日期格式解析
                         const date = new Date(cleaned);
                         if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
                     }
@@ -838,13 +963,39 @@ createApp({
 
                 const parseDate = (dateValue) => {
                     if (!dateValue) return null;
+
+                    // 数字类型（Excel 序列号）
                     if (typeof dateValue === 'number') {
                         const date = new Date((dateValue - 25569) * 86400 * 1000);
                         return date.toISOString().split('T')[0];
                     }
+
                     if (typeof dateValue === 'string') {
                         const cleaned = dateValue.trim();
                         if (!cleaned) return null;
+
+                        // 尝试解析中文日期格式（如"3月2日"、"2026年3月2日"）
+                        const chinesePattern1 = /^(\d{4})年(\d{1,2})月(\d{1,2})日$/;
+                        const chinesePattern2 = /^(\d{1,2})月(\d{1,2})日$/;
+
+                        let match = cleaned.match(chinesePattern1);
+                        if (match) {
+                            const year = parseInt(match[1]);
+                            const month = parseInt(match[2]);
+                            const day = parseInt(match[3]);
+                            return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                        }
+
+                        match = cleaned.match(chinesePattern2);
+                        if (match) {
+                            // 如果没有年份，默认使用当前年份
+                            const year = new Date().getFullYear();
+                            const month = parseInt(match[1]);
+                            const day = parseInt(match[2]);
+                            return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                        }
+
+                        // 标准日期格式解析
                         const date = new Date(cleaned);
                         if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
                     }
@@ -1120,7 +1271,12 @@ createApp({
             // 创建用户
             newUser, creatingUser, createUserError, createUserSuccess, createUser,
             // 代理导入
-            proxyImport, proxyImportResult, handleProxyImport
+            proxyImport, proxyImportResult, handleProxyImport,
+            // 批量删除
+            batchDeleteMode, selectedPlanIds, toggleBatchDeleteMode, togglePlanSelection, isPlanSelected,
+            selectAllPlans, isAllSelected, batchDeletePlans,
+            // 职能细分筛选
+            filterSubCategory, availableSubCategories
         };
     }
 }).mount('#app');
