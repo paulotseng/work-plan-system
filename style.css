@@ -880,50 +880,38 @@ body {
 /* ===== 字段宽度优化 ===== */
 /* 任务描述列 - 25个中文字（约500px） */
 .description-cell {
-    min-width: 350px;
+    min-width: 300px;
     max-width: 500px;
-    white-space: pre-wrap;
-    word-break: break-word;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
 }
 
 /* 覆盖范围列 - 允许换行，固定宽度 */
 .scope-cell {
-    min-width: 120px;
-    max-width: 180px;
+    min-width: 100px;
+    max-width: 200px;
     white-space: normal !important;
-    word-break: break-word;
 }
 
-/* 备注列 - 25个中文字，允许换行 */
+/* 备注列 */
 .notes-cell {
-    min-width: 200px;
-    max-width: 400px;
-    white-space: pre-wrap;
-    word-break: break-word;
+    min-width: 150px;
+    max-width: 300px;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
 }
 
 /* 表头列宽设置 */
 .col-description {
-    min-width: 350px;
+    min-width: 300px;
 }
 
 .col-scope {
-    min-width: 120px;
-    max-width: 180px;
+    min-width: 100px;
 }
 
 .col-notes {
-    min-width: 200px;
+    min-width: 150px;
 }
 
 .actions-cell {

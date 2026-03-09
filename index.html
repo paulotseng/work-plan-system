@@ -291,7 +291,7 @@
                             <thead>
                                 <tr class="header-row-1">
                                     <th v-if="batchDeleteMode" class="header-checkbox">选择</th>
-                                    <th colspan="2" class="header-group">职能分类</th>
+                                    <th :colspan="batchDeleteMode ? 2 : 2" class="header-group">职能分类</th>
                                     <th colspan="7" class="header-group">计划描述</th>
                                     <th colspan="4" class="header-group">任务执行</th>
                                     <th class="header-action">操作</th>
