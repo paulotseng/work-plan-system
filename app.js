@@ -824,11 +824,17 @@ createApp({
             if (!file) return;
 
             try {
+                console.log('📁 开始导入文件:', file.name);
                 const data = await file.arrayBuffer();
                 const workbook = XLSX.read(data, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                console.log('📊 解析到数据行数:', jsonData.length);
+                if (jsonData.length > 0) {
+                    console.log('📋 第一行数据的列名:', Object.keys(jsonData[0]));
+                }
 
                 const parseDate = (dateValue) => {
                     if (!dateValue) return null;
@@ -857,10 +863,16 @@ createApp({
 
                 let importCount = 0;
                 let errorCount = 0;
+                const errors = [];
 
-                for (const row of jsonData) {
+                for (let i = 0; i < jsonData.length; i++) {
+                    const row = jsonData[i];
                     const description = row['任务描述'] || row['描述'] || '';
-                    if (!description.trim()) continue;
+
+                    if (!description || !description.toString().trim()) {
+                        console.log(`⚠️ 第 ${i + 1} 行跳过: 没有任务描述`);
+                        continue;
+                    }
 
                     const planData = {
                         user_id: user.value.id,
@@ -870,7 +882,7 @@ createApp({
                         sub_category: row['职能细分'] || '',
                         main_project: row['主项目名称'] || row['主项目'] || '',
                         sub_project: row['子项目名称'] || row['子项目'] || '',
-                        description: description,
+                        description: description.toString().trim(),
                         scope: row['覆盖范围'] ? row['覆盖范围'].toString().split(/[,，]/).map(s => s.trim()).filter(s => s) : [],
                         stage: row['任务阶段'] || '常规支撑',
                         start_date: parseDate(row['开始日期'] || row['预计开始时间']),
@@ -886,13 +898,33 @@ createApp({
                         value_review: row['价值评价'] || ''
                     };
 
+                    console.log(`📝 正在导入第 ${i + 1} 行:`, planData.description.substring(0, 30));
+
                     const { data: result, error } = await supabaseClient.from('plans').insert(planData).select().single();
-                    if (result) { myPlans.value.unshift(result); allPlans.value.unshift(result); importCount++; }
-                    else { console.error('导入失败:', error); errorCount++; }
+                    if (result) {
+                        myPlans.value.unshift(result);
+                        allPlans.value.unshift(result);
+                        importCount++;
+                        console.log(`✅ 第 ${i + 1} 行导入成功`);
+                    } else {
+                        console.error(`❌ 第 ${i + 1} 行导入失败:`, error);
+                        errors.push(`第 ${i + 1} 行: ${error?.message || '未知错误'}`);
+                        errorCount++;
+                    }
                 }
 
                 event.target.value = '';
-                alert(errorCount > 0 ? `导入完成！成功 ${importCount} 条，失败 ${errorCount} 条` : `成功导入 ${importCount} 条计划！`);
+
+                if (importCount === 0 && errorCount === 0) {
+                    alert('⚠️ 没有找到可导入的数据！\n\n请检查 Excel 文件中是否有"任务描述"列，且该列有内容。');
+                } else if (errorCount > 0) {
+                    alert(`导入完成！成功 ${importCount} 条，失败 ${errorCount} 条\n\n失败原因:\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? '\n...' : ''}`);
+                } else {
+                    alert(`✅ 成功导入 ${importCount} 条计划！`);
+                }
+
+                // 刷新列表
+                await fetchMyPlans();
 
             } catch (error) {
                 console.error('导入错误:', error);
